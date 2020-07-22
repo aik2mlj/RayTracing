@@ -203,4 +203,32 @@
 
   事实上，`let s = "hello world"`中，s是一个`&str`，即字符数组的常值引用
 
+
+
+
+- **结构体**
+
+  ```rust
+  struct User {
+      username: String,
+      email: String,
+      sign_in_count: u64,
+      active: bool, // 末尾可以留逗号
+  } // 定义（这里无分号！）
+  
+  let user1 = User {
+      email: String::from("someone@example.com"),
+      username: String::from("someusername123"),
+      active: true,
+      sign_in_count: 1,
+  }; // 初始化
+  let user2 = User {
+      email: String::from("another@example.com"),
+      username: String::from("anotherusername567"),
+      ..user1 // 这里！直接把user1的其他内容复制到user2
+  };
+  
+  struct color(i32, i32, i32); // 从tuple生成struct
+  ```
+
   
