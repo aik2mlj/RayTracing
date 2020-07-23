@@ -102,7 +102,7 @@
   let a = [1, 2, 3, 4, 5];
   let b = ["王么略", "baoyi"];
   
-  let a: [i32; 5] = {1, 2, 3, 4, 5}; // 等价于int a[5];
+  let a: [i32; 5] = [1, 2, 3, 4, 5]; // 等价于int a[5]; 注意这里是[]而不是{}!
   let a = [3; 5]; // int a[5]后统一初始化为3
   ```
 
@@ -225,10 +225,54 @@
   let user2 = User {
       email: String::from("another@example.com"),
       username: String::from("anotherusername567"),
-      ..user1 // 这里！直接把user1的其他内容复制到user2
+      ..user1 // 这里！直接把user1的其他内容复制到user2（无分号！）
   };
   
   struct color(i32, i32, i32); // 从tuple生成struct
+  
+  impl User { // 类函数（“methods”）
+      fn blahblah() -> i32 {
+          ...
+      }
+  }
+  ```
+
+- **enum**（真的好用）
+
+  ```rust
+  enum Message {
+      Quit, // 一般enum类的样子：啥也没有
+      Move { x: i32, y: i32 }, // 关联一个无名结构体！
+      Write(String), // 关联String类
+      ChangeColor(i32, i32, i32), // 关联一个tuple
+  }
+  // 同时只能出现一种情况，Quit|Move|Write|ChangeColor四选一
+  
+  初始化：
+  let m = Message::Write(String::from("hello"));
+  ```
+
+  同样地，`enum`也可以定义method即类函数
+
+  - 特殊的enum：`Option`
+
+    为了解决**空引用**的问题：
+
+    ```rust
+    enum Option<T> {
+        Some(T),
+        None,
+    }
+    ```
+
+    在此，None就是”空引用“
+
+- **match**
+
+  配合enum使用：
+
+  ```rust
+  
   ```
 
   
