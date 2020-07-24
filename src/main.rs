@@ -1,109 +1,64 @@
+mod ray;
 #[allow(clippy::float_cmp)]
 mod vec3;
-use image::{ImageBuffer, RgbImage};
+use image::{ImageBuffer, Rgb, RgbImage};
 use indicatif::ProgressBar;
-use std::f64::consts::PI;
+// use std::f64::consts::PI;
 
+pub use ray::Ray;
 pub use vec3::Vec3;
 
-fn main() {
-    // let x = Vec3::new(1.0, 1.0, 1.0);
-    // println!("{:?}", x);
-    const SIZ: u32 = 512;
+// Image
+const SIZ: u32 = 512;
+const RADIO: f64 = 16.0 / 9.0;
+const image_w: u32 = (SIZ as f64 * RADIO) as u32;
+const image_h: u32 = SIZ;
 
-    let mut img: RgbImage = ImageBuffer::new(SIZ, SIZ);
+// Camera
+const viewport_height: f64 = 2.0;
+const viewport_width: f64 = RADIO * viewport_height;
+const focal_length: f64 = 1.0;
+
+fn write_color(x: u32, y: u32, img: &mut RgbImage, rgb: Vec3) {
+    img.put_pixel(
+        x,
+        image_h - y - 1,
+        Rgb([
+            (rgb.x * 255.99) as u8,
+            (rgb.y * 255.99) as u8,
+            (rgb.z * 255.99) as u8,
+        ]),
+    );
+}
+
+fn ray_color(r: &Ray) -> Vec3 {
+    let unit_dir = r.dir.unit();
+    let t = 0.5 * (unit_dir.y + 1.0);
+    Vec3::new(1.0, 1.0, 1.0) * (1.0 - t) + Vec3::new(0.5, 0.7, 1.0) * t
+}
+
+fn main() {
+    let mut img: RgbImage = ImageBuffer::new(image_w, image_h);
     let bar = ProgressBar::new(SIZ.into()); // used for displaying progress in stdcerr
 
-    // for x in 0..1024 {
-    //     for y in 1..1024 {
-    //         let pixel = img.get_pixel_mut(x, y);
-    //         // let color = (x / 4) as u8;
-    //         let r = (x / 4) as u8;
-    //         let g = (y / 4) as u8;
-    //         let b = (x & y) as u8;
-    //         *pixel = image::Rgb([r, g, b]);
-    //     }
-    //     bar.inc(1);
-    // }
-    let rad: u32 = 200;
-    let r: u8 = 25;
-    let g: u8 = 255;
-    let b: u8 = 255;
-    let half = SIZ / 2;
-    // get a circle
-    for x in (half - rad)..(half + rad) {
-        let y1 = half - ((rad * rad - (half - x) * (half - x)) as f64).sqrt() as u32;
-        let y2 = half + ((rad * rad - (half - x) * (half - x)) as f64).sqrt() as u32;
-        let pixel1 = img.get_pixel_mut(x, y1);
-        *pixel1 = image::Rgb([r, g, b]);
-        let pixel2 = img.get_pixel_mut(x, y2);
-        *pixel2 = image::Rgb([r, g, b]);
+    let origin: Vec3 = Vec3::new(0.0, 0.0, 0.0);
+    let horizontal = Vec3::new(viewport_width, 0.0, 0.0);
+    let vertical = Vec3::new(0.0, viewport_height, 0.0);
+    let lower_left_corner =
+        origin - horizontal / 2.0 - vertical / 2.0 - Vec3::new(0.0, 0.0, focal_length);
+    println!("{:?}", lower_left_corner);
 
-        bar.inc(1);
-    }
-    for y in (half - rad)..(half + rad) {
-        let x1 = half - ((rad * rad - (half - y) * (half - y)) as f64).sqrt() as u32;
-        let x2 = half + ((rad * rad - (half - y) * (half - y)) as f64).sqrt() as u32;
-        let pixel1 = img.get_pixel_mut(x1, y);
-        *pixel1 = image::Rgb([r, g, b]);
-        let pixel2 = img.get_pixel_mut(x2, y);
-        *pixel2 = image::Rgb([r, g, b]);
-
-        bar.inc(1);
-    }
-
-    struct Thread {
-        l: u32,
-        angle: f64,
-    }
-    let th: [Thread; 3] = [
-        Thread {
-            l: rad * 4 / 5,
-            angle: rand::random::<f64>() * 2.0 * PI,
-        },
-        Thread {
-            l: rad * 2 / 3,
-            angle: rand::random::<f64>() * 2.0 * PI,
-        },
-        Thread {
-            l: rad / 2,
-            angle: rand::random::<f64>() * 2.0 * PI,
-        },
-    ];
-
-    // let l1 = (rad * 4 / 5) as u32;
-    // let l2 = (rad * 2 / 3) as u32;
-    // let l3 =
-    // for x in half..
-    for wh in &th {
-        let x0 = (wh.l as f64 * wh.angle.cos()) as i32;
-        if x0 < 0 {
-            for x in x0..1 {
-                let y = ((x as f64 / x0 as f64) * wh.l as f64 * wh.angle.sin()) as i32;
-                let pixel = img.get_pixel_mut((x + half as i32) as u32, (y + half as i32) as u32);
-                *pixel = image::Rgb([r, g, b]);
-            }
-        } else {
-            for x in 0..x0 + 1 {
-                let y = ((x as f64 / x0 as f64) * wh.l as f64 * wh.angle.sin()) as i32;
-                let pixel = img.get_pixel_mut((x + half as i32) as u32, (y + half as i32) as u32);
-                *pixel = image::Rgb([r, g, b]);
-            }
-        }
-
-        let y0 = (wh.l as f64 * wh.angle.sin()) as i32;
-        if y0 < 0 {
-            for y in y0..1 {
-                let x = ((y as f64 / y0 as f64) * wh.l as f64 * wh.angle.cos()) as i32;
-                let pixel = img.get_pixel_mut((x + half as i32) as u32, (y + half as i32) as u32);
-                *pixel = image::Rgb([r, g, b]);
-            }
-        } else {
-            for y in 0..y0 + 1 {
-                let x = ((y as f64 / y0 as f64) * wh.l as f64 * wh.angle.cos()) as i32;
-                let pixel = img.get_pixel_mut((x + half as i32) as u32, (y + half as i32) as u32);
-                *pixel = image::Rgb([r, g, b]);
-            }
+    // Render
+    for j in (0..image_h).rev() {
+        for i in 0..image_w {
+            let u = i as f64 / (image_w - 1) as f64;
+            let v = j as f64 / (image_h - 1) as f64;
+            let r = Ray::new(
+                origin,
+                lower_left_corner + horizontal * u + vertical * v - origin,
+            );
+            let pixel_color = ray_color(&r);
+            write_color(i, j, &mut img, pixel_color);
         }
     }
 

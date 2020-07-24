@@ -1,6 +1,7 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+// Clone for mannual deep copy, Debug for output debug info, PartialEq for operator==
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
