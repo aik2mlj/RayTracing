@@ -33,7 +33,7 @@ fn write_color(x: u32, y: u32, img: &mut RgbImage, rgb: Vec3) {
     );
 }
 
-fn ray_color(r: &Ray, sph: &hittable::Sphere) -> Vec3 {
+fn ray_color(r: &Ray, sph: &hittable::HitTableList) -> Vec3 {
     let t = sph.hit(r, 0.0, f64::MAX);
     if let Some(rec) = t {
         return (rec.normal + Vec3::new(1.0, 1.0, 1.0)) * 0.5;
@@ -56,10 +56,12 @@ fn main() {
     println!("{:?}", lower_left_corner);
 
     // Render
+    let mut world = hittable::HitTableList { objects: vec![] };
     let sphere = hittable::Sphere {
         center: Vec3::new(0.0, 0.0, -1.0),
         radius: 0.5,
     };
+    world.add(Box::new(sphere));
 
     for j in (0..IMAGE_H).rev() {
         for i in 0..IMAGE_W {
@@ -69,7 +71,7 @@ fn main() {
                 origin,
                 lower_left_corner + horizontal * u + vertical * v - origin,
             );
-            let pixel_color = ray_color(&r, &sphere);
+            let pixel_color = ray_color(&r, &world);
             write_color(i, j, &mut img, pixel_color);
         }
     }

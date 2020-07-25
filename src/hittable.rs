@@ -11,6 +11,32 @@ pub trait Object {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
 }
 
+pub struct HitTableList {
+    // a list of hit-tables that have implemented Object trait
+    pub objects: Vec<Box<dyn Object>>,
+}
+impl HitTableList {
+    pub fn add(&mut self, new_item: Box<dyn Object>) {
+        self.objects.push(new_item);
+    }
+}
+impl Object for HitTableList {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut closest_so_far = t_max;
+        let mut ret = None;
+
+        for ob in self.objects.iter() {
+            let tmp_rec = ob.hit(r, t_min, closest_so_far);
+            if let Some(rec_value) = tmp_rec {
+                closest_so_far = rec_value.t;
+                ret = Some(rec_value);
+            }
+        }
+        ret
+    }
+}
+
+#[derive(Debug)]
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f64,
