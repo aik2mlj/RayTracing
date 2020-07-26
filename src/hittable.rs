@@ -3,7 +3,7 @@ use crate::vec3::Vec3;
 
 #[derive(Default)]
 pub struct HitRecord {
-    pub p: Vec3,
+    pub p: Vec3,      // the hit point
     pub normal: Vec3, // normal dir
     pub t: f64,
 

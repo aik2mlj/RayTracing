@@ -18,6 +18,7 @@ const RADIO: f64 = 16.0 / 9.0;
 const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
 const IMAGE_H: u32 = SIZ;
 const SAMPLE_PER_PIXEL: u32 = 100;
+const MAX_DEPTH: u32 = 50;
 
 fn degree_to_radians(degrees: f64) -> f64 {
     degrees * PI / 180.0
@@ -34,11 +35,12 @@ fn clamp(x: f64, min: f64, max: f64) -> f64 {
     }
 }
 
+// put pixel onto the image
 fn write_color(x: u32, y: u32, img: &mut RgbImage, rgb: Vec3) {
-    // put pixel onto the image
-    let r = rgb.x / SAMPLE_PER_PIXEL as f64;
-    let g = rgb.y / SAMPLE_PER_PIXEL as f64;
-    let b = rgb.z / SAMPLE_PER_PIXEL as f64;
+    // sqrt for Gamma Correction: gamma = 2.0
+    let r = (rgb.x / SAMPLE_PER_PIXEL as f64).sqrt();
+    let g = (rgb.y / SAMPLE_PER_PIXEL as f64).sqrt();
+    let b = (rgb.z / SAMPLE_PER_PIXEL as f64).sqrt();
     img.put_pixel(
         x,
         IMAGE_H - y - 1,
@@ -50,10 +52,15 @@ fn write_color(x: u32, y: u32, img: &mut RgbImage, rgb: Vec3) {
     );
 }
 
-fn ray_color(r: &Ray, sph: &HitTableList) -> Vec3 {
-    let t = sph.hit(r, 0.0, f64::MAX);
+// get the ray color within the depth
+fn ray_color(r: &Ray, world: &HitTableList, depth: u32) -> Vec3 {
+    if depth == 0 {
+        return Vec3::zero();
+    }
+    let t = world.hit(r, 0.001, f64::MAX); // 0.001: get rid of shadow acnes
     if let Some(rec) = t {
-        return (rec.normal + Vec3::new(1.0, 1.0, 1.0)) * 0.5;
+        let target = rec.p + rec.normal + Vec3::rand_in_unit_sphere();
+        return ray_color(&Ray::new(rec.p, target - rec.p), world, depth - 1) * 0.5; // recurse to add in the child rays
     }
 
     let unit_dir = r.dir.unit();
@@ -89,7 +96,7 @@ fn main() {
                 let v = (j as f64 + rand::random::<f64>()) / (IMAGE_H - 1) as f64;
 
                 let r = cam.get_ray(u, v);
-                pixel_color += ray_color(&r, &world);
+                pixel_color += ray_color(&r, &world, MAX_DEPTH);
             }
             write_color(i, j, &mut img, pixel_color);
         }

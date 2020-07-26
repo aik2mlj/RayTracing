@@ -398,3 +398,15 @@ impl Summary for NewsArticle {}
   ```
 
 
+
+# RayTracer
+
+### shadow acne
+
+由于精度问题导致，本该全被照亮的地方判定出现了阴影。
+
+解决：略微调高`hit`的反应阈值，0.0 -> 0.001
+
+对比：
+
+![no_shadow_acne](C:\Users\ASUS\Desktop\ppca\RayTracing\some result\no_shadow_acne.png)![shadow_acne](C:\Users\ASUS\Desktop\ppca\RayTracing\some result\shadow_acne.png)
