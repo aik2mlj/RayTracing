@@ -1,6 +1,7 @@
 mod camera;
 mod hittable;
 mod ray;
+mod shared_tools;
 #[allow(clippy::float_cmp)]
 mod vec3;
 use image::{ImageBuffer, Rgb, RgbImage};
@@ -10,6 +11,7 @@ use std::f64::consts::PI;
 pub use camera::Camera;
 pub use hittable::*;
 pub use ray::*;
+pub use shared_tools::*;
 pub use vec3::Vec3;
 
 // Image
@@ -19,21 +21,6 @@ const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
 const IMAGE_H: u32 = SIZ;
 const SAMPLE_PER_PIXEL: u32 = 100;
 const MAX_DEPTH: u32 = 50;
-
-fn degree_to_radians(degrees: f64) -> f64 {
-    degrees * PI / 180.0
-}
-
-fn clamp(x: f64, min: f64, max: f64) -> f64 {
-    // anti-aliasing
-    if x < min {
-        min
-    } else if x > max {
-        max
-    } else {
-        x
-    }
-}
 
 // put pixel onto the image
 fn write_color(x: u32, y: u32, img: &mut RgbImage, rgb: Vec3) {
@@ -59,8 +46,9 @@ fn ray_color(r: &Ray, world: &HitTableList, depth: u32) -> Vec3 {
     }
     let t = world.hit(r, 0.001, f64::MAX); // 0.001: get rid of shadow acnes
     if let Some(rec) = t {
-        let target = rec.p + rec.normal + Vec3::rand_in_unit_sphere();
-        return ray_color(&Ray::new(rec.p, target - rec.p), world, depth - 1) * 0.5; // recurse to add in the child rays
+        let target = rec.p + rec.normal + Vec3::random_unit_vector();
+        return ray_color(&Ray::new(rec.p, target - rec.p), world, depth - 1) * 0.5;
+        // recurse to add in the child rays
     }
 
     let unit_dir = r.dir.unit();

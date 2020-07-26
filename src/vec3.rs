@@ -1,4 +1,7 @@
+use std::f64::consts::PI;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+
+use crate::shared_tools::*;
 
 #[derive(Default, Copy, Clone, Debug, PartialEq)]
 // Clone for mannual deep copy, Debug for output debug info, PartialEq for operator==
@@ -60,9 +63,9 @@ impl Vec3 {
 
     fn rand(min: f64, max: f64) -> Self {
         Self {
-            x: min + (max - min) * rand::random::<f64>(),
-            y: min + (max - min) * rand::random::<f64>(),
-            z: min + (max - min) * rand::random::<f64>(),
+            x: random_f64(min, max),
+            y: random_f64(min, max),
+            z: random_f64(min, max),
         }
     }
 
@@ -74,6 +77,14 @@ impl Vec3 {
             }
             return tmp;
         }
+    }
+
+    // True Lambertian Reflection
+    pub fn random_unit_vector() -> Self {
+        let a = random_f64(0.0, 2.0 * PI);
+        let z = random_f64(-1.0, 1.0);
+        let r = (1.0 - z * z).sqrt();
+        Vec3::new(r * a.cos(), r * a.sin(), z)
     }
 }
 
