@@ -1,5 +1,6 @@
 use crate::hittable::HitRecord;
 use crate::ray::*;
+use crate::shared_tools::*;
 use crate::vec3::*;
 
 // TRAIT Material
@@ -49,5 +50,54 @@ impl Metal {
             albedo: _al,
             fuzz: _fuzz,
         }
+    }
+}
+
+pub struct Dielectric {
+    pub ref_idx: f64,
+}
+impl Material for Dielectric {
+    fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+        let etai_over_etat = if rec.front_face {
+            1.0 / self.ref_idx
+        } else {
+            self.ref_idx
+        };
+        let unit_dir = ray_in.dir.unit();
+
+        let cos_theta = if (-unit_dir) * rec.normal < 1.0 {
+            (-unit_dir) * rec.normal
+        } else {
+            1.0
+        };
+        let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+        if etai_over_etat * sin_theta > 1.0 {
+            // Total internal reflection
+            Some((
+                Vec3::ones(),
+                Ray::new(rec.p, Vec3::reflect(unit_dir, rec.normal)),
+            ))
+        } else {
+            let reflect_prob = schlick(cos_theta, etai_over_etat);
+            // proportion: some rays reflect & some refract
+            if rand::random::<f64>() < reflect_prob {
+                // reflect
+                Some((
+                    Vec3::ones(),
+                    Ray::new(rec.p, Vec3::reflect(unit_dir, rec.normal)),
+                ))
+            } else {
+                // refract
+                Some((
+                    Vec3::ones(),
+                    Ray::new(rec.p, Vec3::refract(unit_dir, rec.normal, etai_over_etat)),
+                ))
+            }
+        }
+    }
+}
+impl Dielectric {
+    pub fn new(_ref: f64) -> Self {
+        Self { ref_idx: _ref }
     }
 }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 pub struct HitRecord {
     pub p: Vec3,      // the hit point
-    pub normal: Vec3, // normal dir
+    pub normal: Vec3, // normal dir (united)
     pub t: f64,
 
     pub front_face: bool,

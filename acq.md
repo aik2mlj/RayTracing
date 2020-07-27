@@ -389,7 +389,7 @@ impl Summary for NewsArticle {}
   impl<T: Display + PartialOrd> Pair<T> { // 只有部署了Display和PartialOrd的类型才可以使用的method
       fn cmp_display(&self) {
           if self.x >= self.y {
-              printmethodln!("The largest member is x = {}", self.x);
+              println!("The largest member is x = {}", self.x);
           } else {
               println!("The largest member is y = {}", self.y);
           }
