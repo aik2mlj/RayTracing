@@ -101,7 +101,14 @@ fn main() {
     }));
 
     // Camera
-    let cam = Camera::new(RADIO);
+    let v_up: Vec3 = Vec3::new(0.0, 1.0, 0.0);
+    let cam = Camera::new(
+        Vec3::new(-1.0, 1.0, 1.0),
+        Vec3::new(0.0, 0.0, -1.0),
+        v_up,
+        40.0,
+        RADIO,
+    );
 
     // Render
     for j in (0..IMAGE_H).rev() {
