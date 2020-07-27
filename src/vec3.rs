@@ -61,7 +61,7 @@ impl Vec3 {
         }
     }
 
-    fn rand(min: f64, max: f64) -> Self {
+    pub fn rand(min: f64, max: f64) -> Self {
         Self {
             x: random_f64(min, max),
             y: random_f64(min, max),
@@ -72,6 +72,20 @@ impl Vec3 {
     pub fn rand_in_unit_sphere() -> Self {
         loop {
             let tmp = Self::rand(-1.0, 1.0);
+            if tmp.squared_length() >= 1.0 {
+                continue;
+            }
+            return tmp;
+        }
+    }
+
+    pub fn rand_in_unit_disk() -> Self {
+        loop {
+            let tmp = Self {
+                x: random_f64(-1.0, 1.0),
+                y: random_f64(-1.0, 1.0),
+                z: 0.0,
+            };
             if tmp.squared_length() >= 1.0 {
                 continue;
             }

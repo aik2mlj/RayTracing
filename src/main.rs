@@ -7,7 +7,6 @@ mod shared_tools;
 mod vec3;
 use image::{ImageBuffer, Rgb, RgbImage};
 use indicatif::ProgressBar;
-use std::f64::consts::PI;
 use std::sync::Arc;
 
 pub use camera::Camera;
@@ -18,11 +17,11 @@ pub use shared_tools::*;
 pub use vec3::Vec3;
 
 // Image
-const SIZ: u32 = 512;
-const RADIO: f64 = 16.0 / 9.0;
+const SIZ: u32 = 800;
+const RADIO: f64 = 3.0 / 2.0;
 const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
 const IMAGE_H: u32 = SIZ;
-const SAMPLE_PER_PIXEL: u32 = 100;
+const SAMPLE_PER_PIXEL: u32 = 500;
 const MAX_DEPTH: u32 = 50;
 
 // put pixel onto the image
@@ -67,48 +66,47 @@ fn main() {
     let bar = ProgressBar::new(SIZ.into()); // used for displaying progress in stdcerr
 
     // THE WORLD!
-    let mut world = HitTableList { objects: vec![] };
+    let world = big_random_scene();
 
-    let material_ground = Arc::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)));
-    let material_center = Arc::new(Lambertian::new(Vec3::new(0.1, 0.2, 0.5)));
-    let material_left = Arc::new(Dielectric::new(1.5));
-    let material_right = Arc::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 1.0));
+    // let material_ground = Arc::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)));
+    // let material_center = Arc::new(Lambertian::new(Vec3::new(0.1, 0.2, 0.5)));
+    // let material_left = Arc::new(Dielectric::new(1.5));
+    // let material_right = Arc::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 1.0));
 
-    world.add(Box::new(Sphere {
-        center: Vec3::new(0.0, -100.5, -1.0),
-        radius: 100.0,
-        mat_ptr: material_ground.clone(),
-    }));
-    world.add(Box::new(Sphere {
-        center: Vec3::new(0.0, 0.0, -1.0),
-        radius: 0.5,
-        mat_ptr: material_center.clone(),
-    }));
-    world.add(Box::new(Sphere {
-        center: Vec3::new(-1.0, 0.0, -1.0),
-        radius: 0.5,
-        mat_ptr: material_left.clone(),
-    }));
-    world.add(Box::new(Sphere {
-        center: Vec3::new(-1.0, 0.0, -1.0),
-        radius: -0.4,
-        mat_ptr: material_left.clone(),
-    }));
-    world.add(Box::new(Sphere {
-        center: Vec3::new(1.0, 0.0, -1.0),
-        radius: 0.5,
-        mat_ptr: material_right.clone(),
-    }));
+    // world.add(Box::new(Sphere {
+    //     center: Vec3::new(0.0, -100.5, -1.0),
+    //     radius: 100.0,
+    //     mat_ptr: material_ground.clone(),
+    // }));
+    // world.add(Box::new(Sphere {
+    //     center: Vec3::new(0.0, 0.0, -1.0),
+    //     radius: 0.5,
+    //     mat_ptr: material_center.clone(),
+    // }));
+    // world.add(Box::new(Sphere {
+    //     center: Vec3::new(-1.0, 0.0, -1.0),
+    //     radius: 0.5,
+    //     mat_ptr: material_left.clone(),
+    // }));
+    // world.add(Box::new(Sphere {
+    //     center: Vec3::new(-1.0, 0.0, -1.0),
+    //     radius: -0.4,
+    //     mat_ptr: material_left.clone(),
+    // }));
+    // world.add(Box::new(Sphere {
+    //     center: Vec3::new(1.0, 0.0, -1.0),
+    //     radius: 0.5,
+    //     mat_ptr: material_right.clone(),
+    // }));
 
     // Camera
-    let v_up: Vec3 = Vec3::new(0.0, 1.0, 0.0);
-    let cam = Camera::new(
-        Vec3::new(-1.0, 1.0, 1.0),
-        Vec3::new(0.0, 0.0, -1.0),
-        v_up,
-        40.0,
-        RADIO,
-    );
+    let lookfrom = Vec3::new(13.0, 2.0, 3.0);
+    let lookat = Vec3::zero();
+    let v_up = Vec3::new(0.0, 1.0, 0.0);
+    let dist_to_focus = 10.0;
+    let aperture = 0.1;
+
+    let cam = Camera::new(lookfrom, lookat, v_up, 20.0, RADIO, aperture, dist_to_focus);
 
     // Render
     for j in (0..IMAGE_H).rev() {
@@ -129,4 +127,79 @@ fn main() {
 
     img.save("output/test.png").unwrap();
     bar.finish();
+}
+
+fn big_random_scene() -> HitTableList {
+    let mut world = HitTableList::new();
+    let material_ground = Arc::new(Lambertian::new(Vec3::new(0.5, 0.5, 0.5)));
+    world.add(Box::new(Sphere {
+        center: Vec3::new(0.0, -1000.0, 0.0),
+        radius: 1000.0,
+        mat_ptr: material_ground.clone(),
+    }));
+
+    let rad: f64 = 0.2;
+
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose_mat: f64 = rand::random();
+            let center = Vec3::new(
+                a as f64 + 0.9 * rand::random::<f64>(),
+                0.2,
+                b as f64 + 0.9 * rand::random::<f64>(),
+            );
+
+            if (center - Vec3::new(4.0, 0.2, 0.0)).length() > 0.9 {
+                if choose_mat < 0.8 {
+                    // diffuse
+                    let albedo = Vec3::rand(0.0, 1.0).cross(Vec3::rand(0.0, 1.0));
+                    let sphere_material = Arc::new(Lambertian::new(albedo));
+                    world.add(Box::new(Sphere {
+                        center: center,
+                        radius: rad,
+                        mat_ptr: sphere_material,
+                    }));
+                } else if choose_mat < 0.95 {
+                    // metal
+                    let albedo = Vec3::rand(0.5, 1.0);
+                    let fuzz = random_f64(0.0, 0.5);
+                    let sphere_material = Arc::new(Metal::new(albedo, fuzz));
+                    world.add(Box::new(Sphere {
+                        center: center,
+                        radius: rad,
+                        mat_ptr: sphere_material,
+                    }));
+                } else {
+                    // glass
+                    let sphere_material = Arc::new(Dielectric::new(1.5));
+                    world.add(Box::new(Sphere {
+                        center: center,
+                        radius: rad,
+                        mat_ptr: sphere_material,
+                    }));
+                }
+            }
+        }
+    }
+
+    let material1 = Arc::new(Dielectric::new(1.5));
+    world.add(Box::new(Sphere {
+        center: Vec3::new(0.0, 1.0, 0.0),
+        radius: 1.0,
+        mat_ptr: material1,
+    }));
+    let material2 = Arc::new(Lambertian::new(Vec3::new(0.4, 0.2, 0.1)));
+    world.add(Box::new(Sphere {
+        center: Vec3::new(-4.0, 1.0, 0.0),
+        radius: 1.0,
+        mat_ptr: material2,
+    }));
+    let material3 = Arc::new(Metal::new(Vec3::new(0.7, 0.6, 0.5), 0.0));
+    world.add(Box::new(Sphere {
+        center: Vec3::new(4.0, 1.0, 0.0),
+        radius: 1.0,
+        mat_ptr: material3,
+    }));
+
+    world
 }

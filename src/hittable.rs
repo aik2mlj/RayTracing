@@ -32,6 +32,10 @@ pub struct HitTableList {
     pub objects: Vec<Box<dyn Object>>,
 }
 impl HitTableList {
+    pub fn new() -> Self {
+        Self { objects: vec![] }
+    }
+
     pub fn add(&mut self, new_item: Box<dyn Object>) {
         self.objects.push(new_item);
     }
