@@ -79,12 +79,26 @@ impl Vec3 {
         }
     }
 
+    pub fn rand_in_hemisphere(normal: Vec3) -> Self {
+        let in_unit_sphere = Self::rand_in_unit_sphere();
+        if in_unit_sphere * normal > 0.0 {
+            in_unit_sphere
+        } else {
+            -in_unit_sphere
+        }
+    }
+
     // True Lambertian Reflection
     pub fn random_unit_vector() -> Self {
         let a = random_f64(0.0, 2.0 * PI);
         let z = random_f64(-1.0, 1.0);
         let r = (1.0 - z * z).sqrt();
         Vec3::new(r * a.cos(), r * a.sin(), z)
+    }
+
+    // Reflection
+    pub fn reflect(v: Vec3, n: Vec3) -> Self {
+        v - n * 2.0 * (v * n)
     }
 }
 

@@ -1,5 +1,6 @@
 mod camera;
 mod hittable;
+mod material;
 mod ray;
 mod shared_tools;
 #[allow(clippy::float_cmp)]
@@ -7,9 +8,11 @@ mod vec3;
 use image::{ImageBuffer, Rgb, RgbImage};
 use indicatif::ProgressBar;
 use std::f64::consts::PI;
+use std::sync::Arc;
 
 pub use camera::Camera;
 pub use hittable::*;
+pub use material::*;
 pub use ray::*;
 pub use shared_tools::*;
 pub use vec3::Vec3;
@@ -46,8 +49,11 @@ fn ray_color(r: &Ray, world: &HitTableList, depth: u32) -> Vec3 {
     }
     let t = world.hit(r, 0.001, f64::MAX); // 0.001: get rid of shadow acnes
     if let Some(rec) = t {
-        let target = rec.p + rec.normal + Vec3::random_unit_vector();
-        return ray_color(&Ray::new(rec.p, target - rec.p), world, depth - 1) * 0.5;
+        let scattered_value = rec.mat_ptr.scatter(r, &rec);
+        if let Some((attenuation, scattered)) = scattered_value {
+            return ray_color(&scattered, world, depth - 1).elemul(attenuation);
+        }
+        return Vec3::zero();
         // recurse to add in the child rays
     }
 
@@ -62,13 +68,31 @@ fn main() {
 
     // THE WORLD!
     let mut world = HitTableList { objects: vec![] };
-    world.add(Box::new(Sphere {
-        center: Vec3::new(0.0, 0.0, -1.0),
-        radius: 0.5,
-    }));
+
+    let material_ground = Arc::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)));
+    let material_center = Arc::new(Lambertian::new(Vec3::new(0.7, 0.3, 0.3)));
+    let material_left = Arc::new(Metal::new(Vec3::new(0.8, 0.8, 0.8), 0.3));
+    let material_right = Arc::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 1.0));
+
     world.add(Box::new(Sphere {
         center: Vec3::new(0.0, -100.5, -1.0),
         radius: 100.0,
+        mat_ptr: material_ground,
+    }));
+    world.add(Box::new(Sphere {
+        center: Vec3::new(0.0, 0.0, -1.0),
+        radius: 0.5,
+        mat_ptr: material_center,
+    }));
+    world.add(Box::new(Sphere {
+        center: Vec3::new(-1.0, 0.0, -1.0),
+        radius: 0.5,
+        mat_ptr: material_left,
+    }));
+    world.add(Box::new(Sphere {
+        center: Vec3::new(1.0, 0.0, -1.0),
+        radius: 0.5,
+        mat_ptr: material_right,
     }));
 
     // Camera
