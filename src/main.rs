@@ -11,6 +11,7 @@ use image::{ImageBuffer, Rgb, RgbImage};
 use indicatif::ProgressBar;
 use std::sync::Arc;
 
+pub use bvh::*;
 pub use camera::Camera;
 pub use hittable::*;
 pub use material::*;
@@ -20,11 +21,11 @@ pub use texture::*;
 pub use vec3::Vec3;
 
 // Image
-const SIZ: u32 = 400;
+const SIZ: u32 = 800;
 const RADIO: f64 = 3.0 / 2.0;
 const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
 const IMAGE_H: u32 = SIZ;
-const SAMPLE_PER_PIXEL: u32 = 100;
+const SAMPLE_PER_PIXEL: u32 = 256;
 const MAX_DEPTH: u32 = 50;
 
 // put pixel onto the image
@@ -78,13 +79,7 @@ fn main() {
     // THE WORLD!
     let mut world = HitTableList::new();
     let mut background = Vec3::new(0.7, 0.8, 1.0);
-    let mut lookfrom = Vec3::new(13.0, 2.0, 3.0);
-    let mut lookat = Vec3::zero();
-    let mut v_up = Vec3::new(0.0, 1.0, 0.0);
-    let mut vfov = 20.0;
-    let mut dist_to_focus = 10.0;
-    let mut aperture = 0.1;
-    match 4 {
+    match 1 {
         1 => {
             world = big_random_scene();
         }
@@ -98,6 +93,9 @@ fn main() {
             world = earth();
         }
     }
+    let mut world0 = HitTableList::new();
+    // use BVH
+    world0.add(Arc::new(BVHNode::new(&mut world, 0.0, 1.0)));
 
     // let material_ground = Arc::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)));
     // let material_center = Arc::new(Lambertian::new(Vec3::new(0.1, 0.2, 0.5)));
@@ -131,8 +129,13 @@ fn main() {
     // }));
 
     // Camera
-
-    let cam = Camera::new(lookfrom, lookat, v_up, 20.0, RADIO, aperture, dist_to_focus);
+    let lookfrom = Vec3::new(13.0, 2.0, 3.0);
+    let lookat = Vec3::zero();
+    let v_up = Vec3::new(0.0, 1.0, 0.0);
+    let vfov = 20.0;
+    let dist_to_focus = 10.0;
+    let aperture = 0.1;
+    let cam = Camera::new(lookfrom, lookat, v_up, vfov, RADIO, aperture, dist_to_focus);
 
     // Render
     for j in (0..IMAGE_H).rev() {
@@ -144,7 +147,7 @@ fn main() {
                 let v = (j as f64 + rand::random::<f64>()) / (IMAGE_H - 1) as f64;
 
                 let r = cam.get_ray(u, v);
-                pixel_color += ray_color(&r, &background, &world, MAX_DEPTH);
+                pixel_color += ray_color(&r, &background, &world0, MAX_DEPTH);
             }
             write_color(i, j, &mut img, pixel_color);
         }

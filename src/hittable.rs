@@ -62,6 +62,7 @@ impl Object for HitTableList {
         ret
     }
 
+    // bound all the stuff together
     fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
         if self.objects.is_empty() {
             return None;
@@ -145,6 +146,7 @@ impl Object for Sphere {
     }
 
     fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
+        // use the outside BOX of this sphere
         Some(AABB::new(
             self.center - Vec3::new(self.radius, self.radius, self.radius),
             self.center + Vec3::new(self.radius, self.radius, self.radius),
@@ -153,6 +155,7 @@ impl Object for Sphere {
 }
 impl Sphere {
     fn get_uv(p: Vec3) -> (f64, f64) {
+        // put a 2D UV onto the surface of a sphere
         let phi = p.z.atan2(p.x);
         let theta = p.y.asin();
         (1.0 - (phi + PI) / (2.0 * PI), (theta + PI / 2.0) / PI)

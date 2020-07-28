@@ -1,9 +1,12 @@
+// BVH is used to fast the code, making the running time logarithmic to the numbers of objects
+
 use crate::hittable::*;
 use crate::ray::*;
 use crate::vec3::Vec3;
 use std::cmp::Ordering;
 use std::sync::Arc;
 
+// a bounding box
 #[derive(Default, Clone)]
 pub struct AABB {
     pub _min: Vec3,
@@ -76,9 +79,11 @@ impl AABB {
     }
 }
 
+// a node that bound two node
+// real objects(Sphere, etc.) live at the leaves of this hierarchy
 pub struct BVHNode {
-    pub left: Arc<dyn Object>,
-    pub right: Arc<dyn Object>,
+    pub left: Arc<dyn Object>,  // left child
+    pub right: Arc<dyn Object>, // right child
     pub _box: AABB,
 }
 impl Object for BVHNode {
@@ -109,7 +114,11 @@ impl Object for BVHNode {
     }
 }
 impl BVHNode {
-    pub fn new(
+    pub fn new(list: &mut HitTableList, time0: f64, time1: f64) -> Self {
+        let len = list.objects.len();
+        Self::new_(&mut list.objects, 0, len, time0, time1)
+    }
+    fn new_(
         objects: &mut Vec<Arc<dyn Object>>,
         start: usize,
         end: usize,
@@ -138,8 +147,8 @@ impl BVHNode {
             objects_slice.sort_by(|a, b| comparator(a, b)); // sort the slice
 
             let mid = (start + end) >> 1; // half divide and recurse
-            left = Arc::new(BVHNode::new(objects, start, mid, time0, time1));
-            right = Arc::new(BVHNode::new(objects, mid, end, time0, time1));
+            left = Arc::new(BVHNode::new_(objects, start, mid, time0, time1));
+            right = Arc::new(BVHNode::new_(objects, mid, end, time0, time1));
         }
 
         let box_left = left.bounding_box(time0, time1).unwrap();
@@ -152,17 +161,17 @@ impl BVHNode {
         }
     }
 
-    pub fn box_x_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
+    fn box_x_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
         let box_a = a.bounding_box(0.0, 0.0).unwrap();
         let box_b = b.bounding_box(0.0, 0.0).unwrap();
         box_a._min.x.partial_cmp(&box_b._min.x).unwrap()
     }
-    pub fn box_y_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
+    fn box_y_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
         let box_a = a.bounding_box(0.0, 0.0).unwrap();
         let box_b = b.bounding_box(0.0, 0.0).unwrap();
         box_a._min.y.partial_cmp(&box_b._min.y).unwrap()
     }
-    pub fn box_z_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
+    fn box_z_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
         let box_a = a.bounding_box(0.0, 0.0).unwrap();
         let box_b = b.bounding_box(0.0, 0.0).unwrap();
         box_a._min.z.partial_cmp(&box_b._min.z).unwrap()
