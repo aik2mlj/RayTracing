@@ -145,7 +145,7 @@ impl Object for Sphere {
         None
     }
 
-    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
         // use the outside BOX of this sphere
         Some(AABB::new(
             self.center - Vec3::new(self.radius, self.radius, self.radius),

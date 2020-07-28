@@ -8,10 +8,10 @@ use std::sync::Arc;
 
 // TRAIT Material
 pub trait Material {
-    fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, _ray_in: &Ray, _rec: &HitRecord) -> Option<(Vec3, Ray)> {
         None
     }
-    fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+    fn emitted(&self, _u: f64, _v: f64, _p: Vec3) -> Vec3 {
         Vec3::zero()
     }
 }
@@ -22,7 +22,7 @@ pub struct Lambertian {
     pub albedo: Arc<dyn Texture>,
 }
 impl Material for Lambertian {
-    fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
         let scatter_dir = rec.normal + Vec3::random_unit_vector(); // Lambertian scattering
         Some((
             self.albedo.value(rec.u, rec.v, rec.p), // get color value in texture

@@ -1,6 +1,4 @@
-use image::DynamicImage;
 use image::GenericImageView;
-use image::Pixel;
 use std::path::Path;
 
 use crate::shared_tools::*;
@@ -15,7 +13,7 @@ pub struct SolidColor {
     color_value: Vec3,
 }
 impl Texture for SolidColor {
-    fn value(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+    fn value(&self, _u: f64, _v: f64, _p: Vec3) -> Vec3 {
         self.color_value
     }
 }
@@ -59,7 +57,7 @@ pub struct ImageTexture {
     height: u32,
 }
 impl Texture for ImageTexture {
-    fn value(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+    fn value(&self, u: f64, v: f64, _p: Vec3) -> Vec3 {
         let u = clamp(u, 0.0, 1.0);
         let v = 1.0 - clamp(v, 0.0, 1.0);
 

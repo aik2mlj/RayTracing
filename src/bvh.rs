@@ -24,10 +24,10 @@ impl AABB {
         let mut tmin = t_min;
         let mut tmax = t_max;
 
-        let invD = 1.0 / r.dir.x;
-        let mut t0 = (self._min.x - r.orig.x) * invD;
-        let mut t1 = (self._max.x - r.orig.x) * invD;
-        if invD < 0.0 {
+        let invd = 1.0 / r.dir.x;
+        let mut t0 = (self._min.x - r.orig.x) * invd;
+        let mut t1 = (self._max.x - r.orig.x) * invd;
+        if invd < 0.0 {
             std::mem::swap(&mut t0, &mut t1);
         }
         tmin = if t0 > tmin { t0 } else { tmin };
@@ -36,10 +36,10 @@ impl AABB {
             return false;
         }
 
-        let invD = 1.0 / r.dir.y;
-        let mut t0 = (self._min.y - r.orig.y) * invD;
-        let mut t1 = (self._max.y - r.orig.y) * invD;
-        if invD < 0.0 {
+        let invd = 1.0 / r.dir.y;
+        let mut t0 = (self._min.y - r.orig.y) * invd;
+        let mut t1 = (self._max.y - r.orig.y) * invd;
+        if invd < 0.0 {
             std::mem::swap(&mut t0, &mut t1);
         }
         tmin = if t0 > tmin { t0 } else { tmin };
@@ -48,10 +48,10 @@ impl AABB {
             return false;
         }
 
-        let invD = 1.0 / r.dir.z;
-        let mut t0 = (self._min.z - r.orig.z) * invD;
-        let mut t1 = (self._max.z - r.orig.z) * invD;
-        if invD < 0.0 {
+        let invd = 1.0 / r.dir.z;
+        let mut t0 = (self._min.z - r.orig.z) * invd;
+        let mut t1 = (self._max.z - r.orig.z) * invd;
+        if invd < 0.0 {
             std::mem::swap(&mut t0, &mut t1);
         }
         tmin = if t0 > tmin { t0 } else { tmin };
@@ -109,7 +109,7 @@ impl Object for BVHNode {
             }
         }
     }
-    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
         Some(self._box.clone())
     }
 }
@@ -143,7 +143,7 @@ impl BVHNode {
                 left = objects[start + 1].clone();
             }
         } else {
-            let mut objects_slice = &mut objects[start..end]; // mutable slice
+            let objects_slice = &mut objects[start..end]; // mutable slice
             objects_slice.sort_by(|a, b| comparator(a, b)); // sort the slice
 
             let mid = (start + end) >> 1; // half divide and recurse

@@ -78,7 +78,7 @@ fn main() {
 
     // THE WORLD!
     let mut world = HitTableList::new();
-    let mut background = Vec3::new(0.7, 0.8, 1.0);
+    let background = Vec3::new(0.7, 0.8, 1.0);
     match 1 {
         1 => {
             world = big_random_scene();
