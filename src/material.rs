@@ -1,7 +1,10 @@
 use crate::hittable::HitRecord;
 use crate::ray::*;
 use crate::shared_tools::*;
+use crate::texture::*;
 use crate::vec3::*;
+use std::convert::From;
+use std::sync::Arc;
 
 // TRAIT Material
 pub trait Material {
@@ -13,17 +16,30 @@ pub trait Material {
 
 // Lambertian Material
 pub struct Lambertian {
-    pub albedo: Vec3,
+    pub albedo: Arc<dyn Texture>,
 }
 impl Material for Lambertian {
     fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
         let scatter_dir = rec.normal + Vec3::random_unit_vector(); // Lambertian scattering
-        Some((self.albedo, Ray::new(rec.p, scatter_dir)))
+        Some((
+            self.albedo.value(rec.u, rec.v, rec.p), // get color value in texture
+            Ray::new(rec.p, scatter_dir),
+        ))
     }
 }
 impl Lambertian {
     pub fn new(_al: Vec3) -> Self {
-        Self { albedo: _al }
+        Self {
+            albedo: Arc::new(SolidColor::new(_al)),
+        }
+    }
+    pub fn new_from_texture(other: Arc<dyn Texture>) -> Self {
+        Self { albedo: other }
+    }
+}
+impl From<Arc<dyn Texture>> for Lambertian {
+    fn from(other: Arc<dyn Texture>) -> Self {
+        Self { albedo: other }
     }
 }
 

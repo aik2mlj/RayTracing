@@ -1,12 +1,18 @@
+use crate::bvh::*;
 use crate::material::*;
 use crate::ray::Ray;
 use crate::vec3::Vec3;
+use std::f64::consts::PI;
 use std::sync::Arc;
 
 pub struct HitRecord {
     pub p: Vec3,      // the hit point
     pub normal: Vec3, // normal dir (united)
     pub t: f64,
+
+    // UV for texture
+    pub u: f64,
+    pub v: f64,
 
     pub front_face: bool,
 
@@ -25,18 +31,19 @@ impl HitRecord {
 
 pub trait Object {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
+    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB>;
 }
 
 pub struct HitTableList {
     // a list of hit-tables that have implemented Object trait
-    pub objects: Vec<Box<dyn Object>>,
+    pub objects: Vec<Arc<dyn Object>>,
 }
 impl HitTableList {
     pub fn new() -> Self {
         Self { objects: vec![] }
     }
 
-    pub fn add(&mut self, new_item: Box<dyn Object>) {
+    pub fn add(&mut self, new_item: Arc<dyn Object>) {
         self.objects.push(new_item);
     }
 }
@@ -53,6 +60,29 @@ impl Object for HitTableList {
             }
         }
         ret
+    }
+
+    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
+        if self.objects.is_empty() {
+            return None;
+        }
+
+        let mut first_box = true;
+        let mut ret = AABB::default();
+        for ob in self.objects.iter() {
+            let tmp_ret = ob.bounding_box(t0, t1);
+            if let Some(tmp_box) = tmp_ret {
+                ret = if first_box {
+                    tmp_box
+                } else {
+                    AABB::surrounding_box(tmp_box, ret)
+                };
+                first_box = false;
+            } else {
+                return None;
+            }
+        }
+        Some(ret)
     }
 }
 
@@ -77,12 +107,16 @@ impl Object for Sphere {
             if (root < t_max) && (root > t_min) {
                 let ret_p = r.at(root);
                 let outward_normal = (ret_p - self.center) / self.radius;
+                let (u, v) = Sphere::get_uv(outward_normal);
                 let mut ret = HitRecord {
                     t: root,
                     p: ret_p,
                     normal: outward_normal,
                     front_face: false,
                     mat_ptr: self.mat_ptr.clone(),
+
+                    u,
+                    v,
                 };
                 ret.set_face_normal(&r, &outward_normal);
                 return Some(ret);
@@ -92,17 +126,35 @@ impl Object for Sphere {
             if root < t_max && root > t_min {
                 let ret_p = r.at(root);
                 let outward_normal = (ret_p - self.center) / self.radius;
+                let (u, v) = Sphere::get_uv(outward_normal);
                 let mut ret = HitRecord {
                     t: root,
                     p: ret_p,
                     normal: outward_normal,
                     front_face: false,
                     mat_ptr: self.mat_ptr.clone(),
+
+                    u,
+                    v,
                 };
                 ret.set_face_normal(&r, &outward_normal);
                 return Some(ret);
             }
         }
         None
+    }
+
+    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
+        Some(AABB::new(
+            self.center - Vec3::new(self.radius, self.radius, self.radius),
+            self.center + Vec3::new(self.radius, self.radius, self.radius),
+        ))
+    }
+}
+impl Sphere {
+    fn get_uv(p: Vec3) -> (f64, f64) {
+        let phi = p.z.atan2(p.x);
+        let theta = p.y.asin();
+        (1.0 - (phi + PI) / (2.0 * PI), (theta + PI / 2.0) / PI)
     }
 }

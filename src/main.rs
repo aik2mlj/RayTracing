@@ -1,8 +1,10 @@
+mod bvh;
 mod camera;
 mod hittable;
 mod material;
 mod ray;
 mod shared_tools;
+mod texture;
 #[allow(clippy::float_cmp)]
 mod vec3;
 use image::{ImageBuffer, Rgb, RgbImage};
@@ -14,14 +16,15 @@ pub use hittable::*;
 pub use material::*;
 pub use ray::*;
 pub use shared_tools::*;
+pub use texture::*;
 pub use vec3::Vec3;
 
 // Image
-const SIZ: u32 = 800;
+const SIZ: u32 = 400;
 const RADIO: f64 = 3.0 / 2.0;
 const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
 const IMAGE_H: u32 = SIZ;
-const SAMPLE_PER_PIXEL: u32 = 500;
+const SAMPLE_PER_PIXEL: u32 = 100;
 const MAX_DEPTH: u32 = 50;
 
 // put pixel onto the image
@@ -73,27 +76,27 @@ fn main() {
     // let material_left = Arc::new(Dielectric::new(1.5));
     // let material_right = Arc::new(Metal::new(Vec3::new(0.8, 0.6, 0.2), 1.0));
 
-    // world.add(Box::new(Sphere {
+    // world.add(Arc::new(Sphere {
     //     center: Vec3::new(0.0, -100.5, -1.0),
     //     radius: 100.0,
     //     mat_ptr: material_ground.clone(),
     // }));
-    // world.add(Box::new(Sphere {
+    // world.add(Arc::new(Sphere {
     //     center: Vec3::new(0.0, 0.0, -1.0),
     //     radius: 0.5,
     //     mat_ptr: material_center.clone(),
     // }));
-    // world.add(Box::new(Sphere {
+    // world.add(Arc::new(Sphere {
     //     center: Vec3::new(-1.0, 0.0, -1.0),
     //     radius: 0.5,
     //     mat_ptr: material_left.clone(),
     // }));
-    // world.add(Box::new(Sphere {
+    // world.add(Arc::new(Sphere {
     //     center: Vec3::new(-1.0, 0.0, -1.0),
     //     radius: -0.4,
     //     mat_ptr: material_left.clone(),
     // }));
-    // world.add(Box::new(Sphere {
+    // world.add(Arc::new(Sphere {
     //     center: Vec3::new(1.0, 0.0, -1.0),
     //     radius: 0.5,
     //     mat_ptr: material_right.clone(),
@@ -131,11 +134,15 @@ fn main() {
 
 fn big_random_scene() -> HitTableList {
     let mut world = HitTableList::new();
-    let material_ground = Arc::new(Lambertian::new(Vec3::new(0.5, 0.5, 0.5)));
-    world.add(Box::new(Sphere {
+    let checker = Arc::new(CheckerTexture::new(
+        Vec3::new(0.2, 0.3, 0.1),
+        Vec3::new(0.9, 0.9, 0.9),
+    ));
+    let checker_material = Arc::new(Lambertian::from(checker.clone() as Arc<dyn Texture>));
+    world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -1000.0, 0.0),
         radius: 1000.0,
-        mat_ptr: material_ground.clone(),
+        mat_ptr: checker_material.clone(),
     }));
 
     let rad: f64 = 0.2;
@@ -154,7 +161,7 @@ fn big_random_scene() -> HitTableList {
                     // diffuse
                     let albedo = Vec3::rand(0.0, 1.0).cross(Vec3::rand(0.0, 1.0));
                     let sphere_material = Arc::new(Lambertian::new(albedo));
-                    world.add(Box::new(Sphere {
+                    world.add(Arc::new(Sphere {
                         center: center,
                         radius: rad,
                         mat_ptr: sphere_material,
@@ -164,7 +171,7 @@ fn big_random_scene() -> HitTableList {
                     let albedo = Vec3::rand(0.5, 1.0);
                     let fuzz = random_f64(0.0, 0.5);
                     let sphere_material = Arc::new(Metal::new(albedo, fuzz));
-                    world.add(Box::new(Sphere {
+                    world.add(Arc::new(Sphere {
                         center: center,
                         radius: rad,
                         mat_ptr: sphere_material,
@@ -172,7 +179,7 @@ fn big_random_scene() -> HitTableList {
                 } else {
                     // glass
                     let sphere_material = Arc::new(Dielectric::new(1.5));
-                    world.add(Box::new(Sphere {
+                    world.add(Arc::new(Sphere {
                         center: center,
                         radius: rad,
                         mat_ptr: sphere_material,
@@ -183,19 +190,19 @@ fn big_random_scene() -> HitTableList {
     }
 
     let material1 = Arc::new(Dielectric::new(1.5));
-    world.add(Box::new(Sphere {
+    world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 1.0, 0.0),
         radius: 1.0,
         mat_ptr: material1,
     }));
     let material2 = Arc::new(Lambertian::new(Vec3::new(0.4, 0.2, 0.1)));
-    world.add(Box::new(Sphere {
+    world.add(Arc::new(Sphere {
         center: Vec3::new(-4.0, 1.0, 0.0),
         radius: 1.0,
         mat_ptr: material2,
     }));
     let material3 = Arc::new(Metal::new(Vec3::new(0.7, 0.6, 0.5), 0.0));
-    world.add(Box::new(Sphere {
+    world.add(Arc::new(Sphere {
         center: Vec3::new(4.0, 1.0, 0.0),
         radius: 1.0,
         mat_ptr: material3,
