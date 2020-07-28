@@ -11,6 +11,9 @@ pub trait Material {
     fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
         None
     }
+    fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+        Vec3::zero()
+    }
 }
 //*******************
 
@@ -40,6 +43,26 @@ impl Lambertian {
 impl From<Arc<dyn Texture>> for Lambertian {
     fn from(other: Arc<dyn Texture>) -> Self {
         Self { albedo: other }
+    }
+}
+
+// lighting thing
+pub struct DiffuseLight {
+    pub emit: Arc<dyn Texture>,
+}
+impl Material for DiffuseLight {
+    fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+        self.emit.value(u, v, p)
+    }
+}
+impl DiffuseLight {
+    pub fn new(_emit: Vec3) -> Self {
+        Self {
+            emit: Arc::new(SolidColor::new(_emit)),
+        }
+    }
+    pub fn new_from_texture(other: Arc<dyn Texture>) -> Self {
+        Self { emit: other }
     }
 }
 

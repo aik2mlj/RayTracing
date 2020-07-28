@@ -1,3 +1,9 @@
+use image::DynamicImage;
+use image::GenericImageView;
+use image::Pixel;
+use std::path::Path;
+
+use crate::shared_tools::*;
 use crate::vec3::Vec3;
 use std::sync::Arc;
 
@@ -44,5 +50,39 @@ impl CheckerTexture {
             odd: Arc::new(SolidColor::new(color1)),
             even: Arc::new(SolidColor::new(color2)),
         }
+    }
+}
+
+pub struct ImageTexture {
+    img: image::DynamicImage,
+    width: u32,
+    height: u32,
+}
+impl Texture for ImageTexture {
+    fn value(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+        let u = clamp(u, 0.0, 1.0);
+        let v = 1.0 - clamp(v, 0.0, 1.0);
+
+        let i = (u * self.width as f64) as u32;
+        let j = (v * self.height as f64) as u32;
+
+        let i = i.min(self.width - 1);
+        let j = j.min(self.height - 1);
+
+        let pixel = self.img.get_pixel(i, j);
+        Vec3::new(
+            pixel[0] as f64 / 255.0,
+            pixel[1] as f64 / 255.0,
+            pixel[2] as f64 / 255.0,
+        )
+    }
+}
+impl ImageTexture {
+    pub fn new(inputpath: &str) -> Self {
+        let img = image::open(&Path::new(inputpath)).unwrap();
+        let width = img.dimensions().0;
+        let height = img.dimensions().1;
+
+        Self { img, width, height }
     }
 }
