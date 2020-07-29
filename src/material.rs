@@ -49,20 +49,25 @@ impl From<Arc<dyn Texture>> for Lambertian {
 // lighting thing
 pub struct DiffuseLight {
     pub emit: Arc<dyn Texture>,
+    pub intensity: f64,
 }
 impl Material for DiffuseLight {
     fn emitted(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
-        self.emit.value(u, v, p)
+        self.emit.value(u, v, p) * self.intensity
     }
 }
 impl DiffuseLight {
-    pub fn new(_emit: Vec3) -> Self {
+    pub fn new(albedo: Vec3, intensity: f64) -> Self {
         Self {
-            emit: Arc::new(SolidColor::new(_emit)),
+            emit: Arc::new(SolidColor::new(albedo)),
+            intensity,
         }
     }
-    pub fn new_from_texture(other: Arc<dyn Texture>) -> Self {
-        Self { emit: other }
+    pub fn new_from_texture(other: Arc<dyn Texture>, intensity: f64) -> Self {
+        Self {
+            emit: other,
+            intensity,
+        }
     }
 }
 
