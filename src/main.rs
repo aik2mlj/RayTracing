@@ -8,9 +8,12 @@ mod shared_tools;
 mod texture;
 #[allow(clippy::float_cmp)]
 mod vec3;
-use image::{ImageBuffer, Rgb, RgbImage};
+
+use image::{imageops, ImageBuffer, Rgb, RgbImage};
 use indicatif::ProgressBar;
+use std::sync::mpsc::channel;
 use std::sync::Arc;
+use threadpool::ThreadPool;
 
 pub use bvh::*;
 pub use camera::Camera;
@@ -22,22 +25,22 @@ pub use texture::*;
 pub use vec3::Vec3;
 
 // Image
-const SIZ: u32 = 400;
-const RADIO: f64 = 1.0;
+const SIZ: u32 = 1080;
+const RADIO: f64 = 16.0 / 9.0;
 const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
 const IMAGE_H: u32 = SIZ;
 const SAMPLE_PER_PIXEL: u32 = 256;
 const MAX_DEPTH: u32 = 50;
 
 // put pixel onto the image
-fn write_color(x: u32, y: u32, img: &mut RgbImage, rgb: Vec3) {
+fn write_color(x: u32, y: u32, height: u32, img: &mut RgbImage, rgb: Vec3) {
     // sqrt for Gamma Correction: gamma = 2.0
     let r = (rgb.x / SAMPLE_PER_PIXEL as f64).sqrt();
     let g = (rgb.y / SAMPLE_PER_PIXEL as f64).sqrt();
     let b = (rgb.z / SAMPLE_PER_PIXEL as f64).sqrt();
     img.put_pixel(
         x,
-        IMAGE_H - y - 1,
+        y,
         Rgb([
             (clamp(r, 0.0, 0.999) * 255.99) as u8,
             (clamp(g, 0.0, 0.999) * 255.99) as u8,
@@ -47,18 +50,18 @@ fn write_color(x: u32, y: u32, img: &mut RgbImage, rgb: Vec3) {
 }
 
 // get the ray color within the depth
-fn ray_color(r: &Ray, background: &Vec3, world: &HitTableList, depth: u32) -> Vec3 {
+fn ray_color(r: &Ray, background: &Vec3, objects: &HitTableList, depth: u32) -> Vec3 {
     // If we've exceeded the ray bounce limit, no more light is gathered.
     if depth == 0 {
         return Vec3::zero();
     }
-    let t = world.hit(r, 0.001, f64::MAX); // 0.001: get rid of shadow acnes
+    let t = objects.hit(r, 0.001, f64::MAX); // 0.001: get rid of shadow acnes
     if let Some(rec) = t {
         let emitted_value = rec.mat_ptr.emitted(rec.u, rec.v, rec.p);
         let scattered_value = rec.mat_ptr.scatter(r, &rec);
         if let Some((attenuation, scattered)) = scattered_value {
             return emitted_value
-                + ray_color(&scattered, &background, world, depth - 1).elemul(attenuation);
+                + ray_color(&scattered, &background, objects, depth - 1).elemul(attenuation);
         } else {
             emitted_value
         }
@@ -74,20 +77,25 @@ fn ray_color(r: &Ray, background: &Vec3, world: &HitTableList, depth: u32) -> Ve
 }
 
 fn main() {
-    let mut img: RgbImage = ImageBuffer::new(IMAGE_W, IMAGE_H);
-    let bar = ProgressBar::new(SIZ.into()); // used for displaying progress in stdcerr
+    let (tx, rx) = channel();
+    let n_jobs: usize = 32;
+    let n_workers = 4;
+    let pool = ThreadPool::new(n_workers);
+
+    // let mut img: RgbImage = ImageBuffer::new(IMAGE_W, IMAGE_H);
+    let bar = ProgressBar::new(n_jobs as u64); // used for displaying progress in stdcerr
 
     // THE WORLD!
-    let mut world = HitTableList::new();
+    let mut objects = HitTableList::new();
     let mut background = Vec3::new(0.7, 0.8, 1.0);
     let mut lookfrom = Vec3::new(13.0, 2.0, 3.0);
     let mut lookat = Vec3::zero();
     let mut vfov = 20.0;
     let mut dist_to_focus = 10.0;
     let mut aperture = 0.0;
-    match 6 {
+    match 1 {
         1 => {
-            world = scenes::big_random_scene();
+            objects = scenes::big_random_scene();
             background = Vec3::zero();
             lookfrom = Vec3::new(23.0, 3.0, 5.0);
             lookat = Vec3::new(0.0, 0.7, 0.0);
@@ -95,53 +103,83 @@ fn main() {
             aperture = 0.1;
         }
         2 => {
-            world = scenes::two_spheres();
+            objects = scenes::two_spheres();
         }
         3 => {
-            world = scenes::one_ball();
+            objects = scenes::one_ball();
         }
         4 => {
-            world = scenes::earth();
+            objects = scenes::earth();
         }
         5 => {
-            world = scenes::simple_light();
+            objects = scenes::simple_light();
             background = Vec3::zero();
             lookfrom = Vec3::new(26.0, 3.0, 6.0);
             lookat = Vec3::new(0.0, 2.0, 0.0);
         }
         _ => {
-            world = scenes::cornell_box();
+            objects = scenes::cornell_box();
             background = Vec3::zero();
             lookfrom = Vec3::new(278.0, 278.0, -800.0);
             lookat = Vec3::new(278.0, 278.0, 0.0);
             vfov = 40.0;
         }
     }
-    let mut world0 = HitTableList::new();
+    let mut world = HitTableList::new();
     // use BVH
-    world0.add(Arc::new(BVHNode::new(&mut world, 0.0, 1.0)));
+    world.add(Arc::new(BVHNode::new(&mut objects, 0.0, 1.0)));
+    let world = Arc::new(world);
 
     // Camera
     let v_up = Vec3::new(0.0, 1.0, 0.0);
     let cam = Camera::new(lookfrom, lookat, v_up, vfov, RADIO, aperture, dist_to_focus);
+    let cam = Arc::new(cam);
 
     // Render
-    for j in (0..IMAGE_H).rev() {
-        for i in 0..IMAGE_W {
-            let mut pixel_color = Vec3::zero();
-            for _s in 0..SAMPLE_PER_PIXEL {
-                // write each sample
-                let u = (i as f64 + rand::random::<f64>()) / (IMAGE_W - 1) as f64;
-                let v = (j as f64 + rand::random::<f64>()) / (IMAGE_H - 1) as f64;
 
-                let r = cam.get_ray(u, v);
-                pixel_color += ray_color(&r, &background, &world0, MAX_DEPTH);
+    for i in 0..n_jobs {
+        let tx = tx.clone();
+        let world_ptr = world.clone();
+        let cam_ptr = cam.clone();
+        pool.execute(move || {
+            let row_begin = IMAGE_H as usize * i / n_jobs;
+            let row_end = IMAGE_H as usize * (i + 1) / n_jobs;
+            let render_height = (row_end - row_begin) as u32;
+            let mut img_tmp: RgbImage = ImageBuffer::new(IMAGE_W, render_height); // a part of image
+
+            for i in 0..IMAGE_W {
+                for (img_j, j) in (row_begin..row_end).enumerate() {
+                    let img_j = img_j as u32; // 0..row_end - row_begin
+                    let j = j as u32; // row_begin..row_end
+                    let mut pixel_color = Vec3::zero();
+                    for _s in 0..SAMPLE_PER_PIXEL {
+                        // write each sample
+                        let u = (i as f64 + rand::random::<f64>()) / (IMAGE_W - 1) as f64;
+                        let v = (j as f64 + rand::random::<f64>()) / (IMAGE_H - 1) as f64;
+
+                        let r = cam_ptr.get_ray(u, v);
+                        pixel_color += ray_color(&r, &background, &world_ptr, MAX_DEPTH);
+                    }
+                    write_color(i, img_j, render_height, &mut img_tmp, pixel_color);
+                }
             }
-            write_color(i, j, &mut img, pixel_color);
+            tx.send((row_begin..row_end, img_tmp))
+                .expect("failed to send result");
+        });
+    }
+
+    let mut result_img: RgbImage = ImageBuffer::new(IMAGE_W, IMAGE_H);
+    for (rows, data) in rx.iter().take(n_jobs) {
+        for (idx, row) in rows.enumerate() {
+            for col in 0..IMAGE_W {
+                *result_img.get_pixel_mut(col, row as u32) = *data.get_pixel(col, idx as u32);
+            }
         }
         bar.inc(1);
     }
 
-    img.save("output/test.png").unwrap();
+    // flip & turn the image
+    let result_img = imageops::flip_horizontal(&imageops::rotate180(&result_img));
+    result_img.save("output/test.png").unwrap();
     bar.finish();
 }

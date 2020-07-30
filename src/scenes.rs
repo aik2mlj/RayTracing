@@ -11,7 +11,7 @@ pub fn big_random_scene() -> HitTableList {
         Vec3::new(0.2, 0.3, 0.1),
         Vec3::new(0.9, 0.9, 0.9),
     ));
-    let earth_texture = Arc::new(ImageTexture::new("input/yyu.jpg"));
+    let earth_texture = Arc::new(ImageTexture::new("input/yyu2.jpg"));
     let checker_material = Arc::new(Lambertian::from(checker.clone() as Arc<dyn Texture>));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -1000.0, 0.0),
@@ -138,7 +138,7 @@ pub fn one_ball() -> HitTableList {
 
 pub fn earth() -> HitTableList {
     let mut world = HitTableList::new();
-    let earth_texture = Arc::new(ImageTexture::new("input/yyu.jpg"));
+    let earth_texture = Arc::new(ImageTexture::new("input/yyu2.jpg"));
     let earth_surface = Arc::new(Lambertian::new_from_texture(earth_texture));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 0.0, 0.0),

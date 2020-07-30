@@ -7,7 +7,7 @@ use std::convert::From;
 use std::sync::Arc;
 
 // TRAIT Material
-pub trait Material {
+pub trait Material: Send + Sync {
     fn scatter(&self, _ray_in: &Ray, _rec: &HitRecord) -> Option<(Vec3, Ray)> {
         None
     }
