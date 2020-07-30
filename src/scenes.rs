@@ -11,6 +11,7 @@ pub fn big_random_scene() -> HitTableList {
         Vec3::new(0.2, 0.3, 0.1),
         Vec3::new(0.9, 0.9, 0.9),
     ));
+    let earth_texture = Arc::new(ImageTexture::new("input/yyu.jpg"));
     let checker_material = Arc::new(Lambertian::from(checker.clone() as Arc<dyn Texture>));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -1000.0, 0.0),
@@ -71,7 +72,6 @@ pub fn big_random_scene() -> HitTableList {
         }
     }
 
-    let earth_texture = Arc::new(ImageTexture::new("input/earthmap.jpg"));
     let material1 = Arc::new(DiffuseLight::new_from_texture(earth_texture, 1.0));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 1.7, 0.0),
@@ -204,5 +204,57 @@ pub fn simple_light() -> HitTableList {
 
     let difflight = Arc::new(DiffuseLight::new(Vec3::new(0.7, 0.8, 1.0), 4.0));
     world.add(Arc::new(XYRect::new(3.0, 5.0, 1.0, 3.0, -2.0, difflight)));
+    world
+}
+
+pub fn cornell_box() -> HitTableList {
+    let mut world = HitTableList::new();
+
+    let red = Arc::new(Lambertian::new(Vec3::new(0.65, 0.05, 0.05)));
+    let white = Arc::new(Lambertian::new(Vec3::new(0.73, 0.73, 0.73)));
+    let green = Arc::new(Lambertian::new(Vec3::new(0.12, 0.45, 0.15)));
+    let light = Arc::new(DiffuseLight::new(Vec3::new(1.0, 1.0, 1.0), 15.0));
+
+    world.add(Arc::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 555.0, green)));
+    world.add(Arc::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, red)));
+    world.add(Arc::new(XZRect::new(
+        213.0, 343.0, 227.0, 332.0, 554.0, light,
+    )));
+    world.add(Arc::new(XZRect::new(
+        0.0,
+        555.0,
+        0.0,
+        555.0,
+        0.0,
+        white.clone(),
+    )));
+    world.add(Arc::new(XZRect::new(
+        0.0,
+        555.0,
+        0.0,
+        555.0,
+        555.0,
+        white.clone(),
+    )));
+    world.add(Arc::new(XYRect::new(
+        0.0,
+        555.0,
+        0.0,
+        555.0,
+        555.0,
+        white.clone(),
+    )));
+
+    world.add(Arc::new(Box::new(
+        Vec3::new(130.0, 0.0, 65.0),
+        Vec3::new(295.0, 15.0, 330.0),
+        white.clone(),
+    )));
+    world.add(Arc::new(Box::new(
+        Vec3::new(265.0, 0.0, 295.0),
+        Vec3::new(430.0, 330.0, 460.0),
+        white.clone(),
+    )));
+
     world
 }

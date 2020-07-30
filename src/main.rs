@@ -22,8 +22,8 @@ pub use texture::*;
 pub use vec3::Vec3;
 
 // Image
-const SIZ: u32 = 1080;
-const RADIO: f64 = 16.0 / 9.0;
+const SIZ: u32 = 400;
+const RADIO: f64 = 1.0;
 const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
 const IMAGE_H: u32 = SIZ;
 const SAMPLE_PER_PIXEL: u32 = 256;
@@ -85,7 +85,7 @@ fn main() {
     let mut vfov = 20.0;
     let mut dist_to_focus = 10.0;
     let mut aperture = 0.0;
-    match 1 {
+    match 6 {
         1 => {
             world = scenes::big_random_scene();
             background = Vec3::zero();
@@ -103,11 +103,18 @@ fn main() {
         4 => {
             world = scenes::earth();
         }
-        _ => {
+        5 => {
             world = scenes::simple_light();
             background = Vec3::zero();
             lookfrom = Vec3::new(26.0, 3.0, 6.0);
             lookat = Vec3::new(0.0, 2.0, 0.0);
+        }
+        _ => {
+            world = scenes::cornell_box();
+            background = Vec3::zero();
+            lookfrom = Vec3::new(278.0, 278.0, -800.0);
+            lookat = Vec3::new(278.0, 278.0, 0.0);
+            vfov = 40.0;
         }
     }
     let mut world0 = HitTableList::new();

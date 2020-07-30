@@ -214,3 +214,180 @@ impl XYRect {
         }
     }
 }
+
+#[derive(Clone)]
+pub struct XZRect {
+    pub mat_ptr: Arc<dyn Material>,
+    pub x0: f64,
+    pub x1: f64,
+    pub z0: f64,
+    pub z1: f64,
+    pub k: f64,
+}
+impl Object for XZRect {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let t = (self.k - r.orig.y) / r.dir.y;
+        if t < t_min || t > t_max {
+            return None;
+        }
+        let x = r.orig.x + t * r.dir.x;
+        let z = r.orig.z + t * r.dir.z;
+        if x < self.x0 || x > self.x1 || z < self.z0 || z > self.z1 {
+            return None;
+        }
+        let outward_normal = Vec3::new(0.0, 1.0, 0.0);
+        let mut ret = HitRecord {
+            u: (x - self.x0) / (self.x1 - self.x0),
+            v: (z - self.z0) / (self.z1 - self.z0),
+            t,
+            normal: outward_normal,
+            front_face: false,
+            mat_ptr: self.mat_ptr.clone(),
+            p: r.at(t),
+        };
+        ret.set_face_normal(r, &outward_normal);
+        Some(ret)
+    }
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
+        Some(AABB::new(
+            Vec3::new(self.x0, self.k - 0.0001, self.z0),
+            Vec3::new(self.x1, self.k + 0.0001, self.z1),
+        ))
+    }
+}
+impl XZRect {
+    pub fn new(x0: f64, x1: f64, z0: f64, z1: f64, k: f64, mat_ptr: Arc<dyn Material>) -> Self {
+        Self {
+            x0,
+            x1,
+            z0,
+            z1,
+            k,
+            mat_ptr,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct YZRect {
+    pub mat_ptr: Arc<dyn Material>,
+    pub y0: f64,
+    pub y1: f64,
+    pub z0: f64,
+    pub z1: f64,
+    pub k: f64,
+}
+impl Object for YZRect {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let t = (self.k - r.orig.x) / r.dir.x;
+        if t < t_min || t > t_max {
+            return None;
+        }
+        let y = r.orig.y + t * r.dir.y;
+        let z = r.orig.z + t * r.dir.z;
+        if z < self.z0 || z > self.z1 || y < self.y0 || y > self.y1 {
+            return None;
+        }
+        let outward_normal = Vec3::new(1.0, 0.0, 0.0);
+        let mut ret = HitRecord {
+            u: (y - self.y0) / (self.y1 - self.y0),
+            v: (z - self.z0) / (self.z1 - self.z0),
+            t,
+            normal: outward_normal,
+            front_face: false,
+            mat_ptr: self.mat_ptr.clone(),
+            p: r.at(t),
+        };
+        ret.set_face_normal(r, &outward_normal);
+        Some(ret)
+    }
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
+        Some(AABB::new(
+            Vec3::new(self.k - 0.0001, self.y0, self.z0),
+            Vec3::new(self.k + 0.0001, self.y1, self.z1),
+        ))
+    }
+}
+impl YZRect {
+    pub fn new(y0: f64, y1: f64, z0: f64, z1: f64, k: f64, mat_ptr: Arc<dyn Material>) -> Self {
+        Self {
+            y0,
+            y1,
+            z0,
+            z1,
+            k,
+            mat_ptr,
+        }
+    }
+}
+
+pub struct Box {
+    pub min: Vec3,
+    pub max: Vec3,
+    pub sides: HitTableList,
+}
+impl Object for Box {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        self.sides.hit(r, t_min, t_max)
+    }
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
+        Some(AABB::new(self.min, self.max))
+    }
+}
+impl Box {
+    pub fn new(min: Vec3, max: Vec3, mat_ptr: Arc<dyn Material>) -> Self {
+        let mut sides = HitTableList::new();
+        sides.add(Arc::new(XYRect::new(
+            min.x,
+            max.x,
+            min.y,
+            max.y,
+            min.z,
+            mat_ptr.clone(),
+        )));
+        sides.add(Arc::new(XYRect::new(
+            min.x,
+            max.x,
+            min.y,
+            max.y,
+            max.z,
+            mat_ptr.clone(),
+        )));
+
+        sides.add(Arc::new(XZRect::new(
+            min.x,
+            max.x,
+            min.z,
+            max.z,
+            min.y,
+            mat_ptr.clone(),
+        )));
+        sides.add(Arc::new(XZRect::new(
+            min.x,
+            max.x,
+            min.z,
+            max.z,
+            max.y,
+            mat_ptr.clone(),
+        )));
+
+        sides.add(Arc::new(YZRect::new(
+            min.y,
+            max.y,
+            min.z,
+            max.z,
+            min.x,
+            mat_ptr.clone(),
+        )));
+        sides.add(Arc::new(YZRect::new(
+            min.y,
+            max.y,
+            min.z,
+            max.z,
+            max.x,
+            mat_ptr.clone(),
+        )));
+
+        Self { min, max, sides }
+    }
+}
