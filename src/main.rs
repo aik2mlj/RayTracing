@@ -25,19 +25,14 @@ pub use texture::*;
 pub use vec3::Vec3;
 
 // Image
-const SIZ: u32 = 1080;
-const RADIO: f64 = 16.0 / 9.0;
-const IMAGE_W: u32 = (SIZ as f64 * RADIO) as u32;
-const IMAGE_H: u32 = SIZ;
-const SAMPLE_PER_PIXEL: u32 = 256;
 const MAX_DEPTH: u32 = 50;
 
 // put pixel onto the image
-fn write_color(x: u32, y: u32, height: u32, img: &mut RgbImage, rgb: Vec3) {
+fn write_color(x: u32, y: u32, sample_per_pixel: u32, img: &mut RgbImage, rgb: Vec3) {
     // sqrt for Gamma Correction: gamma = 2.0
-    let r = (rgb.x / SAMPLE_PER_PIXEL as f64).sqrt();
-    let g = (rgb.y / SAMPLE_PER_PIXEL as f64).sqrt();
-    let b = (rgb.z / SAMPLE_PER_PIXEL as f64).sqrt();
+    let r = (rgb.x / sample_per_pixel as f64).sqrt();
+    let g = (rgb.y / sample_per_pixel as f64).sqrt();
+    let b = (rgb.z / sample_per_pixel as f64).sqrt();
     img.put_pixel(
         x,
         y,
@@ -86,6 +81,10 @@ fn main() {
     let bar = ProgressBar::new(n_jobs as u64); // used for displaying progress in stdcerr
 
     // THE WORLD!
+    let mut siz: u32 = 400;
+    let mut ratio: f64 = 16.0 / 9.0;
+    let mut sample_per_pixel: u32 = 256;
+
     let mut objects = HitTableList::new();
     let mut background = Vec3::new(0.7, 0.8, 1.0);
     let mut lookfrom = Vec3::new(13.0, 2.0, 3.0);
@@ -93,8 +92,9 @@ fn main() {
     let mut vfov = 20.0;
     let mut dist_to_focus = 10.0;
     let mut aperture = 0.0;
-    match 1 {
+    match 6 {
         1 => {
+            siz = 1080;
             objects = scenes::big_random_scene();
             background = Vec3::zero();
             lookfrom = Vec3::new(23.0, 3.0, 5.0);
@@ -118,6 +118,7 @@ fn main() {
             lookat = Vec3::new(0.0, 2.0, 0.0);
         }
         _ => {
+            ratio = 1.0;
             objects = scenes::cornell_box();
             background = Vec3::zero();
             lookfrom = Vec3::new(278.0, 278.0, -800.0);
@@ -125,14 +126,19 @@ fn main() {
             vfov = 40.0;
         }
     }
-    let mut world = HitTableList::new();
+    let image_w: u32 = (siz as f64 * ratio) as u32;
+    let image_h: u32 = siz;
+
     // use BVH
+    let mut world = HitTableList::new();
     world.add(Arc::new(BVHNode::new(&mut objects, 0.0, 1.0)));
     let world = Arc::new(world);
+    // not use BVH
+    // let world = Arc::new(objects);
 
     // Camera
     let v_up = Vec3::new(0.0, 1.0, 0.0);
-    let cam = Camera::new(lookfrom, lookat, v_up, vfov, RADIO, aperture, dist_to_focus);
+    let cam = Camera::new(lookfrom, lookat, v_up, vfov, ratio, aperture, dist_to_focus);
     let cam = Arc::new(cam);
 
     // Render
@@ -142,25 +148,25 @@ fn main() {
         let world_ptr = world.clone();
         let cam_ptr = cam.clone();
         pool.execute(move || {
-            let row_begin = IMAGE_H as usize * i / n_jobs;
-            let row_end = IMAGE_H as usize * (i + 1) / n_jobs;
+            let row_begin = image_h as usize * i / n_jobs;
+            let row_end = image_h as usize * (i + 1) / n_jobs;
             let render_height = (row_end - row_begin) as u32;
-            let mut img_tmp: RgbImage = ImageBuffer::new(IMAGE_W, render_height); // a part of image
+            let mut img_tmp: RgbImage = ImageBuffer::new(image_w, render_height); // a part of image
 
-            for i in 0..IMAGE_W {
+            for i in 0..image_w {
                 for (img_j, j) in (row_begin..row_end).enumerate() {
                     let img_j = img_j as u32; // 0..row_end - row_begin
                     let j = j as u32; // row_begin..row_end
                     let mut pixel_color = Vec3::zero();
-                    for _s in 0..SAMPLE_PER_PIXEL {
+                    for _s in 0..sample_per_pixel {
                         // write each sample
-                        let u = (i as f64 + rand::random::<f64>()) / (IMAGE_W - 1) as f64;
-                        let v = (j as f64 + rand::random::<f64>()) / (IMAGE_H - 1) as f64;
+                        let u = (i as f64 + rand::random::<f64>()) / (image_w - 1) as f64;
+                        let v = (j as f64 + rand::random::<f64>()) / (image_h - 1) as f64;
 
                         let r = cam_ptr.get_ray(u, v);
                         pixel_color += ray_color(&r, &background, &world_ptr, MAX_DEPTH);
                     }
-                    write_color(i, img_j, render_height, &mut img_tmp, pixel_color);
+                    write_color(i, img_j, sample_per_pixel, &mut img_tmp, pixel_color);
                 }
             }
             tx.send((row_begin..row_end, img_tmp))
@@ -168,10 +174,10 @@ fn main() {
         });
     }
 
-    let mut result_img: RgbImage = ImageBuffer::new(IMAGE_W, IMAGE_H);
+    let mut result_img: RgbImage = ImageBuffer::new(image_w, image_h);
     for (rows, data) in rx.iter().take(n_jobs) {
         for (idx, row) in rows.enumerate() {
-            for col in 0..IMAGE_W {
+            for col in 0..image_w {
                 *result_img.get_pixel_mut(col, row as u32) = *data.get_pixel(col, idx as u32);
             }
         }

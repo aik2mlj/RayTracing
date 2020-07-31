@@ -1,6 +1,7 @@
 use crate::bvh::*;
 use crate::material::*;
 use crate::ray::Ray;
+use crate::shared_tools::*;
 use crate::vec3::Vec3;
 use std::f64::consts::PI;
 use std::sync::Arc;
@@ -389,5 +390,289 @@ impl Box {
         )));
 
         Self { min, max, sides }
+    }
+}
+
+pub struct Translate {
+    pub ptr: Arc<dyn Object>,
+    pub offset: Vec3,
+}
+impl Object for Translate {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let move_r = Ray::new(r.orig - self.offset, r.dir);
+        let tmp_ret = self.ptr.hit(&move_r, t_min, t_max);
+        if let Some(mut rec) = tmp_ret {
+            rec.p += self.offset;
+            rec.set_face_normal(&move_r, &rec.normal.clone());
+            Some(rec)
+        } else {
+            None
+        }
+    }
+    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
+        if let Some(mut output_box) = self.ptr.bounding_box(t0, t1) {
+            output_box._min += self.offset;
+            output_box._max += self.offset;
+            Some(output_box)
+        } else {
+            None
+        }
+    }
+}
+impl Translate {
+    pub fn new(ptr: Arc<dyn Object>, offset: Vec3) -> Self {
+        Self { ptr, offset }
+    }
+}
+
+pub struct RotateX {
+    pub ptr: Arc<dyn Object>,
+    pub sin: f64,
+    pub cos: f64,
+    pub bbox: Option<AABB>,
+}
+impl Object for RotateX {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut origin = r.orig;
+        let mut direction = r.dir;
+
+        origin.y = r.orig.y * self.cos + r.orig.z * self.sin;
+        origin.z = -r.orig.y * self.sin + r.orig.z * self.cos;
+
+        direction.y = r.dir.y * self.cos + r.dir.z * self.sin;
+        direction.z = -r.dir.y * self.sin + r.dir.z * self.cos;
+
+        let rotate_r = Ray::new(origin, direction);
+
+        if let Some(mut rec) = self.ptr.hit(&rotate_r, t_min, t_max) {
+            let mut p = rec.p;
+            let mut normal = rec.normal;
+
+            p.y = rec.p.y * self.cos - rec.p.z * self.sin;
+            p.z = rec.p.y * self.sin + rec.p.z * self.cos;
+
+            normal.y = rec.normal.y * self.cos - rec.normal.z * self.sin;
+            normal.z = rec.normal.y * self.sin + rec.normal.z * self.cos;
+
+            rec.p = p;
+            rec.set_face_normal(&rotate_r, &normal);
+            Some(rec)
+        } else {
+            None
+        }
+    }
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
+        self.bbox.clone()
+    }
+}
+impl RotateX {
+    pub fn new(ptr: Arc<dyn Object>, angle: f64) -> Self {
+        let radians = degree_to_radians(angle);
+        let sin = radians.sin();
+        let cos = radians.cos();
+        if let Some(bbox) = ptr.bounding_box(0.0, 1.0) {
+            let mut min = Vec3::new(f64::MAX, f64::MAX, f64::MAX);
+            let mut max = Vec3::new(f64::MIN, f64::MIN, f64::MIN);
+            for i in 0..2 {
+                for j in 0..2 {
+                    for k in 0..2 {
+                        let x = i as f64 * bbox._max.x + (1 - i) as f64 * bbox._min.x;
+                        let y = j as f64 * bbox._max.y + (1 - j) as f64 * bbox._min.y;
+                        let z = k as f64 * bbox._max.z + (1 - k) as f64 * bbox._min.z;
+
+                        let tester = Vec3::new(x, cos * y - sin * z, sin * y + cos * z);
+
+                        min.x = min.x.min(tester.x);
+                        min.y = min.y.min(tester.y);
+                        min.z = min.z.min(tester.z);
+
+                        max.x = max.x.max(tester.x);
+                        max.y = max.y.max(tester.y);
+                        max.z = max.z.max(tester.z);
+                    }
+                }
+            }
+            Self {
+                ptr,
+                sin,
+                cos,
+                bbox: Some(AABB::new(min, max)),
+            }
+        } else {
+            Self {
+                ptr,
+                sin,
+                cos,
+                bbox: None,
+            }
+        }
+    }
+}
+
+pub struct RotateY {
+    pub ptr: Arc<dyn Object>,
+    pub sin: f64,
+    pub cos: f64,
+    pub bbox: Option<AABB>,
+}
+impl Object for RotateY {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut origin = r.orig;
+        let mut direction = r.dir;
+
+        origin.x = r.orig.x * self.cos - r.orig.z * self.sin;
+        origin.z = r.orig.x * self.sin + r.orig.z * self.cos;
+
+        direction.x = r.dir.x * self.cos - r.dir.z * self.sin;
+        direction.z = r.dir.x * self.sin + r.dir.z * self.cos;
+
+        let rotate_r = Ray::new(origin, direction);
+
+        if let Some(mut rec) = self.ptr.hit(&rotate_r, t_min, t_max) {
+            let mut p = rec.p;
+            let mut normal = rec.normal;
+
+            p.x = rec.p.x * self.cos + rec.p.z * self.sin;
+            p.z = rec.p.x * (-self.sin) + rec.p.z * self.cos;
+
+            normal.x = rec.normal.x * self.cos + rec.normal.z * self.sin;
+            normal.z = rec.normal.x * (-self.sin) + rec.normal.z * self.cos;
+
+            rec.p = p;
+            rec.set_face_normal(&rotate_r, &normal);
+            Some(rec)
+        } else {
+            None
+        }
+    }
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
+        self.bbox.clone()
+    }
+}
+impl RotateY {
+    pub fn new(ptr: Arc<dyn Object>, angle: f64) -> Self {
+        let radians = degree_to_radians(angle);
+        let sin = radians.sin();
+        let cos = radians.cos();
+        if let Some(bbox) = ptr.bounding_box(0.0, 1.0) {
+            let mut min = Vec3::new(f64::MAX, f64::MAX, f64::MAX);
+            let mut max = Vec3::new(f64::MIN, f64::MIN, f64::MIN);
+            for i in 0..2 {
+                for j in 0..2 {
+                    for k in 0..2 {
+                        let x = i as f64 * bbox._max.x + (1 - i) as f64 * bbox._min.x;
+                        let y = j as f64 * bbox._max.y + (1 - j) as f64 * bbox._min.y;
+                        let z = k as f64 * bbox._max.z + (1 - k) as f64 * bbox._min.z;
+
+                        let tester = Vec3::new(cos * x + sin * z, y, -sin * x + cos * z);
+
+                        min.x = min.x.min(tester.x);
+                        min.y = min.y.min(tester.y);
+                        min.z = min.z.min(tester.z);
+
+                        max.x = max.x.max(tester.x);
+                        max.y = max.y.max(tester.y);
+                        max.z = max.z.max(tester.z);
+                    }
+                }
+            }
+            Self {
+                ptr,
+                sin,
+                cos,
+                bbox: Some(AABB::new(min, max)),
+            }
+        } else {
+            Self {
+                ptr,
+                sin,
+                cos,
+                bbox: None,
+            }
+        }
+    }
+}
+
+pub struct RotateZ {
+    pub ptr: Arc<dyn Object>,
+    pub sin: f64,
+    pub cos: f64,
+    pub bbox: Option<AABB>,
+}
+impl Object for RotateZ {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut origin = r.orig;
+        let mut direction = r.dir;
+
+        origin.x = r.orig.x * self.cos + r.orig.y * self.sin;
+        origin.y = -r.orig.x * self.sin + r.orig.y * self.cos;
+
+        direction.x = r.dir.x * self.cos + r.dir.y * self.sin;
+        direction.y = -r.dir.x * self.sin + r.dir.y * self.cos;
+
+        let rotate_r = Ray::new(origin, direction);
+
+        if let Some(mut rec) = self.ptr.hit(&rotate_r, t_min, t_max) {
+            let mut p = rec.p;
+            let mut normal = rec.normal;
+
+            p.x = rec.p.x * self.cos - rec.p.y * self.sin;
+            p.y = rec.p.x * self.sin + rec.p.y * self.cos;
+
+            normal.x = rec.normal.x * self.cos - rec.normal.y * self.sin;
+            normal.y = rec.normal.x * self.sin + rec.normal.y * self.cos;
+
+            rec.p = p;
+            rec.set_face_normal(&rotate_r, &normal);
+            Some(rec)
+        } else {
+            None
+        }
+    }
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
+        self.bbox.clone()
+    }
+}
+impl RotateZ {
+    pub fn new(ptr: Arc<dyn Object>, angle: f64) -> Self {
+        let radians = degree_to_radians(angle);
+        let sin = radians.sin();
+        let cos = radians.cos();
+        if let Some(bbox) = ptr.bounding_box(0.0, 1.0) {
+            let mut min = Vec3::new(f64::MAX, f64::MAX, f64::MAX);
+            let mut max = Vec3::new(f64::MIN, f64::MIN, f64::MIN);
+            for i in 0..2 {
+                for j in 0..2 {
+                    for k in 0..2 {
+                        let x = i as f64 * bbox._max.x + (1 - i) as f64 * bbox._min.x;
+                        let y = j as f64 * bbox._max.y + (1 - j) as f64 * bbox._min.y;
+                        let z = k as f64 * bbox._max.z + (1 - k) as f64 * bbox._min.z;
+
+                        let tester = Vec3::new(cos * x - sin * y, sin * x + cos * y, z);
+
+                        min.x = min.x.min(tester.x);
+                        min.y = min.y.min(tester.y);
+                        min.z = min.z.min(tester.z);
+
+                        max.x = max.x.max(tester.x);
+                        max.y = max.y.max(tester.y);
+                        max.z = max.z.max(tester.z);
+                    }
+                }
+            }
+            Self {
+                ptr,
+                sin,
+                cos,
+                bbox: Some(AABB::new(min, max)),
+            }
+        } else {
+            Self {
+                ptr,
+                sin,
+                cos,
+                bbox: None,
+            }
+        }
     }
 }
