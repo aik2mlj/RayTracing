@@ -54,9 +54,11 @@ fn ray_color(r: &Ray, background: &Vec3, objects: &HitTableList, depth: u32) -> 
     if let Some(rec) = t {
         let emitted_value = rec.mat_ptr.emitted(rec.u, rec.v, rec.p);
         let scattered_value = rec.mat_ptr.scatter(r, &rec);
-        if let Some((attenuation, scattered)) = scattered_value {
+        if let Some((attenuation, scattered, pdf)) = scattered_value {
             return emitted_value
-                + ray_color(&scattered, &background, objects, depth - 1).elemul(attenuation);
+                + ray_color(&scattered, &background, objects, depth - 1).elemul(attenuation)
+                    * rec.mat_ptr.scattering_pdf(r, &rec, &scattered)
+                    / pdf;
         } else {
             emitted_value
         }
@@ -118,6 +120,7 @@ fn main() {
             lookat = Vec3::new(0.0, 2.0, 0.0);
         }
         _ => {
+            siz = 600;
             ratio = 1.0;
             objects = scenes::cornell_box();
             background = Vec3::zero();

@@ -219,7 +219,7 @@ pub fn cornell_box() -> HitTableList {
     world.add(Arc::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 555.0, green)));
     world.add(Arc::new(YZRect::new(0.0, 555.0, 0.0, 555.0, 0.0, red)));
     world.add(Arc::new(XZRect::new(
-        113.0, 443.0, 127.0, 432.0, 554.0, light,
+        213.0, 343.0, 227.0, 332.0, 554.0, light,
     )));
     world.add(Arc::new(XZRect::new(
         0.0,
@@ -255,11 +255,11 @@ pub fn cornell_box() -> HitTableList {
     // let box1 = Arc::new(RotateZ::new(box1, 38.0));
     let box1 = Arc::new(RotateY::new(box1, 38.0));
     let box1 = Arc::new(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
-    let box1 = Arc::new(ConstantMedium::new(
-        box1,
-        0.01,
-        Arc::new(Isotropic::new_from_color(Vec3::zero())),
-    ));
+    // let box1 = Arc::new(ConstantMedium::new(
+    //     box1,
+    //     0.01,
+    //     Arc::new(Isotropic::new_from_color(Vec3::zero())),
+    // ));
     world.add(box1);
 
     let box2 = Arc::new(Box::new(
@@ -270,11 +270,11 @@ pub fn cornell_box() -> HitTableList {
     // let box2 = Arc::new(RotateZ::new(box2, -30.0));
     let box2 = Arc::new(RotateY::new(box2, -30.0));
     let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
-    let box2 = Arc::new(ConstantMedium::new(
-        box2,
-        0.01,
-        Arc::new(Isotropic::new_from_color(Vec3::ones())),
-    ));
+    // let box2 = Arc::new(ConstantMedium::new(
+    //     box2,
+    //     0.01,
+    //     Arc::new(Isotropic::new_from_color(Vec3::ones())),
+    // ));
     world.add(box2);
 
     world

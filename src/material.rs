@@ -4,13 +4,19 @@ use crate::shared_tools::*;
 use crate::texture::*;
 use crate::vec3::*;
 use std::convert::From;
+use std::f64::consts::PI;
 use std::sync::Arc;
 
 // TRAIT Material
 pub trait Material: Send + Sync {
-    fn scatter(&self, _ray_in: &Ray, _rec: &HitRecord) -> Option<(Vec3, Ray)> {
+    // return: color, ray, pdf
+    fn scatter(&self, _ray_in: &Ray, _rec: &HitRecord) -> Option<(Vec3, Ray, f64)> {
         None
     }
+    fn scattering_pdf(&self, _ray_in: &Ray, _rec: &HitRecord, _scattered: &Ray) -> f64 {
+        0.0
+    }
+    // return: color
     fn emitted(&self, _u: f64, _v: f64, _p: Vec3) -> Vec3 {
         Vec3::zero()
     }
@@ -22,12 +28,23 @@ pub struct Lambertian {
     pub albedo: Arc<dyn Texture>,
 }
 impl Material for Lambertian {
-    fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray, f64)> {
         let scatter_dir = rec.normal + Vec3::random_unit_vector(); // Lambertian scattering
+        let scattered = Ray::new(rec.p, scatter_dir.unit());
         Some((
             self.albedo.value(rec.u, rec.v, rec.p), // get color value in texture
-            Ray::new(rec.p, scatter_dir),
+            scattered.clone(),
+            rec.normal * scattered.dir / PI,
         ))
+    }
+
+    fn scattering_pdf(&self, _ray_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f64 {
+        let cos = rec.normal * scattered.dir.unit();
+        if cos < 0.0 {
+            0.0
+        } else {
+            cos / PI
+        }
     }
 }
 impl Lambertian {
@@ -77,12 +94,12 @@ pub struct Metal {
     pub fuzz: f64, // Fuzzy reflection
 }
 impl Material for Metal {
-    fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray, f64)> {
         let reflected = Vec3::reflect(ray_in.dir.unit(), rec.normal); // the reflected dir
         let scattered = Ray::new(rec.p, reflected + Vec3::rand_in_unit_sphere() * self.fuzz); // the reflected ray
         if scattered.dir * rec.normal > 0.0 {
             // whether the reflected ray and the normal are in the same side
-            Some((self.albedo, scattered))
+            Some((self.albedo, scattered, 0.0))
         } else {
             None
         }
@@ -101,7 +118,7 @@ pub struct Dielectric {
     pub ref_idx: f64,
 }
 impl Material for Dielectric {
-    fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray, f64)> {
         let etai_over_etat = if rec.front_face {
             1.0 / self.ref_idx
         } else {
@@ -120,6 +137,7 @@ impl Material for Dielectric {
             Some((
                 Vec3::ones(),
                 Ray::new(rec.p, Vec3::reflect(unit_dir, rec.normal)),
+                0.0,
             ))
         } else {
             let reflect_prob = schlick(cos_theta, etai_over_etat);
@@ -129,12 +147,14 @@ impl Material for Dielectric {
                 Some((
                     Vec3::ones(),
                     Ray::new(rec.p, Vec3::reflect(unit_dir, rec.normal)),
+                    0.0,
                 ))
             } else {
                 // refract
                 Some((
                     Vec3::ones(),
                     Ray::new(rec.p, Vec3::refract(unit_dir, rec.normal, etai_over_etat)),
+                    0.0,
                 ))
             }
         }
@@ -150,10 +170,11 @@ pub struct Isotropic {
     pub albedo: Arc<dyn Texture>,
 }
 impl Material for Isotropic {
-    fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray, f64)> {
         Some((
             self.albedo.value(rec.u, rec.v, rec.p),
             Ray::new(rec.p, Vec3::rand_in_unit_sphere()),
+            0.0,
         ))
     }
 }
