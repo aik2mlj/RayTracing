@@ -145,3 +145,25 @@ impl Dielectric {
         Self { ref_idx: _ref }
     }
 }
+
+pub struct Isotropic {
+    pub albedo: Arc<dyn Texture>,
+}
+impl Material for Isotropic {
+    fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<(Vec3, Ray)> {
+        Some((
+            self.albedo.value(rec.u, rec.v, rec.p),
+            Ray::new(rec.p, Vec3::rand_in_unit_sphere()),
+        ))
+    }
+}
+impl Isotropic {
+    pub fn new_from_color(albedo: Vec3) -> Self {
+        Self {
+            albedo: Arc::new(SolidColor::new(albedo)),
+        }
+    }
+    pub fn new_from_texture(albedo: Arc<dyn Texture>) -> Self {
+        Self { albedo }
+    }
+}

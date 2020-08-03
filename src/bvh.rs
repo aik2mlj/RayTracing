@@ -82,11 +82,11 @@ impl AABB {
 // a node that bound two node
 // real objects(Sphere, etc.) live at the leaves of this hierarchy
 pub struct BVHNode {
-    pub left: Arc<dyn Object>,  // left child
-    pub right: Arc<dyn Object>, // right child
+    pub left: Arc<dyn Hittable>,  // left child
+    pub right: Arc<dyn Hittable>, // right child
     pub _box: AABB,
 }
-impl Object for BVHNode {
+impl Hittable for BVHNode {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         if !self._box.hit(r, t_min, t_max) {
             return None;
@@ -119,7 +119,7 @@ impl BVHNode {
         Self::new_(&mut list.objects, 0, len, time0, time1)
     }
     fn new_(
-        objects: &mut Vec<Arc<dyn Object>>,
+        objects: &mut Vec<Arc<dyn Hittable>>,
         start: usize,
         end: usize,
         time0: f64,
@@ -161,17 +161,17 @@ impl BVHNode {
         }
     }
 
-    fn box_x_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
+    fn box_x_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>) -> Ordering {
         let box_a = a.bounding_box(0.0, 0.0).unwrap();
         let box_b = b.bounding_box(0.0, 0.0).unwrap();
         box_a._min.x.partial_cmp(&box_b._min.x).unwrap()
     }
-    fn box_y_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
+    fn box_y_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>) -> Ordering {
         let box_a = a.bounding_box(0.0, 0.0).unwrap();
         let box_b = b.bounding_box(0.0, 0.0).unwrap();
         box_a._min.y.partial_cmp(&box_b._min.y).unwrap()
     }
-    fn box_z_compare(a: &Arc<dyn Object>, b: &Arc<dyn Object>) -> Ordering {
+    fn box_z_compare(a: &Arc<dyn Hittable>, b: &Arc<dyn Hittable>) -> Ordering {
         let box_a = a.bounding_box(0.0, 0.0).unwrap();
         let box_b = b.bounding_box(0.0, 0.0).unwrap();
         box_a._min.z.partial_cmp(&box_b._min.z).unwrap()

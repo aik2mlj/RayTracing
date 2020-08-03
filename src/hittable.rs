@@ -30,25 +30,25 @@ impl HitRecord {
     }
 }
 
-pub trait Object: Send + Sync {
+pub trait Hittable: Send + Sync {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
     fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB>;
 }
 
 pub struct HitTableList {
-    // a list of hit-tables that have implemented Object trait
-    pub objects: Vec<Arc<dyn Object>>,
+    // a list of hit-tables that have implemented Hittable trait
+    pub objects: Vec<Arc<dyn Hittable>>,
 }
 impl HitTableList {
     pub fn new() -> Self {
         Self { objects: vec![] }
     }
 
-    pub fn add(&mut self, new_item: Arc<dyn Object>) {
+    pub fn add(&mut self, new_item: Arc<dyn Hittable>) {
         self.objects.push(new_item);
     }
 }
-impl Object for HitTableList {
+impl Hittable for HitTableList {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let mut closest_so_far = t_max;
         let mut ret = None;
@@ -94,7 +94,7 @@ pub struct Sphere {
     pub radius: f64,
     pub mat_ptr: Arc<dyn Material>,
 }
-impl Object for Sphere {
+impl Hittable for Sphere {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let oc = r.orig - self.center;
         let a = r.dir.squared_length();
@@ -172,7 +172,7 @@ pub struct XYRect {
     pub y1: f64,
     pub k: f64,
 }
-impl Object for XYRect {
+impl Hittable for XYRect {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let t = (self.k - r.orig.z) / r.dir.z;
         if t < t_min || t > t_max {
@@ -225,7 +225,7 @@ pub struct XZRect {
     pub z1: f64,
     pub k: f64,
 }
-impl Object for XZRect {
+impl Hittable for XZRect {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let t = (self.k - r.orig.y) / r.dir.y;
         if t < t_min || t > t_max {
@@ -278,7 +278,7 @@ pub struct YZRect {
     pub z1: f64,
     pub k: f64,
 }
-impl Object for YZRect {
+impl Hittable for YZRect {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let t = (self.k - r.orig.x) / r.dir.x;
         if t < t_min || t > t_max {
@@ -327,7 +327,7 @@ pub struct Box {
     pub max: Vec3,
     pub sides: HitTableList,
 }
-impl Object for Box {
+impl Hittable for Box {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         self.sides.hit(r, t_min, t_max)
     }
@@ -394,10 +394,10 @@ impl Box {
 }
 
 pub struct Translate {
-    pub ptr: Arc<dyn Object>,
+    pub ptr: Arc<dyn Hittable>,
     pub offset: Vec3,
 }
-impl Object for Translate {
+impl Hittable for Translate {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let move_r = Ray::new(r.orig - self.offset, r.dir);
         let tmp_ret = self.ptr.hit(&move_r, t_min, t_max);
@@ -420,18 +420,18 @@ impl Object for Translate {
     }
 }
 impl Translate {
-    pub fn new(ptr: Arc<dyn Object>, offset: Vec3) -> Self {
+    pub fn new(ptr: Arc<dyn Hittable>, offset: Vec3) -> Self {
         Self { ptr, offset }
     }
 }
 
 pub struct RotateX {
-    pub ptr: Arc<dyn Object>,
+    pub ptr: Arc<dyn Hittable>,
     pub sin: f64,
     pub cos: f64,
     pub bbox: Option<AABB>,
 }
-impl Object for RotateX {
+impl Hittable for RotateX {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let mut origin = r.orig;
         let mut direction = r.dir;
@@ -466,7 +466,7 @@ impl Object for RotateX {
     }
 }
 impl RotateX {
-    pub fn new(ptr: Arc<dyn Object>, angle: f64) -> Self {
+    pub fn new(ptr: Arc<dyn Hittable>, angle: f64) -> Self {
         let radians = degree_to_radians(angle);
         let sin = radians.sin();
         let cos = radians.cos();
@@ -510,12 +510,12 @@ impl RotateX {
 }
 
 pub struct RotateY {
-    pub ptr: Arc<dyn Object>,
+    pub ptr: Arc<dyn Hittable>,
     pub sin: f64,
     pub cos: f64,
     pub bbox: Option<AABB>,
 }
-impl Object for RotateY {
+impl Hittable for RotateY {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let mut origin = r.orig;
         let mut direction = r.dir;
@@ -550,7 +550,7 @@ impl Object for RotateY {
     }
 }
 impl RotateY {
-    pub fn new(ptr: Arc<dyn Object>, angle: f64) -> Self {
+    pub fn new(ptr: Arc<dyn Hittable>, angle: f64) -> Self {
         let radians = degree_to_radians(angle);
         let sin = radians.sin();
         let cos = radians.cos();
@@ -594,12 +594,12 @@ impl RotateY {
 }
 
 pub struct RotateZ {
-    pub ptr: Arc<dyn Object>,
+    pub ptr: Arc<dyn Hittable>,
     pub sin: f64,
     pub cos: f64,
     pub bbox: Option<AABB>,
 }
-impl Object for RotateZ {
+impl Hittable for RotateZ {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let mut origin = r.orig;
         let mut direction = r.dir;
@@ -634,7 +634,7 @@ impl Object for RotateZ {
     }
 }
 impl RotateZ {
-    pub fn new(ptr: Arc<dyn Object>, angle: f64) -> Self {
+    pub fn new(ptr: Arc<dyn Hittable>, angle: f64) -> Self {
         let radians = degree_to_radians(angle);
         let sin = radians.sin();
         let cos = radians.cos();
@@ -673,6 +673,67 @@ impl RotateZ {
                 cos,
                 bbox: None,
             }
+        }
+    }
+}
+
+pub struct ConstantMedium {
+    pub boundary: Arc<dyn Hittable>,
+    pub phase_func: Arc<dyn Material>,
+    pub neg_inv_density: f64,
+}
+impl Hittable for ConstantMedium {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        if let Some(mut rec1) = self.boundary.hit(r, f64::MIN, f64::MAX) {
+            if let Some(mut rec2) = self.boundary.hit(r, rec1.t + 0.0001, f64::MAX) {
+                if rec1.t < t_min {
+                    rec1.t = t_min;
+                }
+                if rec2.t > t_max {
+                    rec2.t = t_max;
+                }
+                if rec1.t >= rec2.t {
+                    return None;
+                }
+                if rec1.t < 0.0 {
+                    rec1.t = 0.0;
+                }
+
+                let ray_length = r.dir.length();
+                let dist_inside_boundary = (rec2.t - rec1.t) * ray_length;
+                let hit_dist = self.neg_inv_density * rand::random::<f64>().ln();
+                if hit_dist > dist_inside_boundary {
+                    return None;
+                }
+
+                let t = rec1.t + hit_dist / ray_length;
+                let ret = HitRecord {
+                    t,
+                    p: r.at(t),
+                    normal: Vec3::new(1.0, 0.0, 0.0), // arbitrary
+                    front_face: true,                 // arbitrary
+                    mat_ptr: self.phase_func.clone(),
+                    u: 0.0,
+                    v: 0.0,
+                };
+                Some(ret)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
+        self.boundary.bounding_box(t0, t1)
+    }
+}
+impl ConstantMedium {
+    pub fn new(boundary: Arc<dyn Hittable>, density: f64, mat_ptr: Arc<dyn Material>) -> Self {
+        Self {
+            boundary,
+            neg_inv_density: -1.0 / density,
+            phase_func: mat_ptr,
         }
     }
 }
