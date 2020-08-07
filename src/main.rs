@@ -2,6 +2,8 @@ mod bvh;
 mod camera;
 mod hittable;
 mod material;
+mod onb;
+mod pdf;
 mod ray;
 mod scenes;
 mod shared_tools;
@@ -19,6 +21,7 @@ pub use bvh::*;
 pub use camera::Camera;
 pub use hittable::*;
 pub use material::*;
+pub use pdf::*;
 pub use ray::*;
 pub use shared_tools::*;
 pub use texture::*;
@@ -28,11 +31,26 @@ pub use vec3::Vec3;
 const MAX_DEPTH: u32 = 50;
 
 // put pixel onto the image
+#[allow(clippy::eq_op)]
+#[allow(clippy::float_cmp)]
 fn write_color(x: u32, y: u32, sample_per_pixel: u32, img: &mut RgbImage, rgb: Vec3) {
     // sqrt for Gamma Correction: gamma = 2.0
-    let r = (rgb.x / sample_per_pixel as f64).sqrt();
-    let g = (rgb.y / sample_per_pixel as f64).sqrt();
-    let b = (rgb.z / sample_per_pixel as f64).sqrt();
+    let mut r = rgb.x;
+    let mut g = rgb.y;
+    let mut b = rgb.z;
+    // Remove acne(NaN != NaN)
+    if r != r {
+        r = 0.0
+    }
+    if g != g {
+        g = 0.0
+    }
+    if b != b {
+        b = 0.0
+    }
+    let r = (r / sample_per_pixel as f64).sqrt();
+    let g = (g / sample_per_pixel as f64).sqrt();
+    let b = (b / sample_per_pixel as f64).sqrt();
     img.put_pixel(
         x,
         y,
@@ -45,20 +63,65 @@ fn write_color(x: u32, y: u32, sample_per_pixel: u32, img: &mut RgbImage, rgb: V
 }
 
 // get the ray color within the depth
-fn ray_color(r: &Ray, background: &Vec3, objects: &HitTableList, depth: u32) -> Vec3 {
+fn ray_color(
+    r: &Ray,
+    background: &Vec3,
+    objects: &HitTableList,
+    lights: Arc<dyn Hittable>,
+    depth: u32,
+) -> Vec3 {
     // If we've exceeded the ray bounce limit, no more light is gathered.
     if depth == 0 {
         return Vec3::zero();
     }
     let t = objects.hit(r, 0.001, f64::MAX); // 0.001: get rid of shadow acnes
     if let Some(rec) = t {
-        let emitted_value = rec.mat_ptr.emitted(rec.u, rec.v, rec.p);
+        let emitted_value = rec.mat_ptr.emitted(r, &rec, rec.u, rec.v, rec.p);
         let scattered_value = rec.mat_ptr.scatter(r, &rec);
-        if let Some((attenuation, scattered, pdf)) = scattered_value {
-            return emitted_value
-                + ray_color(&scattered, &background, objects, depth - 1).elemul(attenuation)
+        if let Some(srec) = scattered_value {
+            // let on_light = Vec3::new(random_f64(213.0, 343.0), 554.0, random_f64(227.0, 332.0));
+            // let to_light = on_light - rec.p;
+            // let distance_squared = to_light.squared_length();
+            // let to_light = to_light.unit();
+            // if to_light * rec.normal < 0.0 {
+            //     return emitted_value;
+            // }
+            // let light_area = ((343 - 213) * (332 - 227)) as f64;
+            // let light_cosine = to_light.y.abs();
+            // // if light_cosine < 0.000001 {
+            // //     return emitted_value;
+            // // }
+
+            // let light_shape = Arc::new(XZRect::new(
+            //     213.0,
+            //     343.0,
+            //     227.0,
+            //     332.0,
+            //     554.0,
+            //     Arc::new(Lambertian::new(Vec3::zero())),
+            // ));
+            if let Some(specular_ray) = srec.specular_ray {
+                return ray_color(&specular_ray, &background, objects, lights, depth - 1)
+                    .elemul(srec.attenuation);
+            }
+            let light_ptr = Arc::new(HittablePDF::new(lights.clone(), rec.p));
+            // let p1 = Arc::new(CosinePDF::build_from_w(&rec.normal));
+            if srec.pdf_ptr.is_none() {
+                panic!("pdf_ptr is None!");
+            }
+            // let p = MixturePDF::new(light_ptr, srec.pdf_ptr.unwrap());
+            let p = MixturePDF::new(light_ptr, srec.pdf_ptr.unwrap());
+            // let p = p1;
+
+            // let p = CosinePDF::build_from_w(&rec.normal);
+            let scattered = Ray::new(rec.p, p.generate());
+            let pdf = p.value(scattered.dir);
+
+            emitted_value
+                + ray_color(&scattered, &background, objects, lights, depth - 1)
+                    .elemul(srec.attenuation)
                     * rec.mat_ptr.scattering_pdf(r, &rec, &scattered)
-                    / pdf;
+                    / pdf
         } else {
             emitted_value
         }
@@ -87,6 +150,7 @@ fn main() {
     let mut ratio: f64 = 16.0 / 9.0;
     let mut sample_per_pixel: u32 = 256;
 
+    let mut lights = HitTableList::new();
     let mut objects = HitTableList::new();
     let mut background = Vec3::new(0.7, 0.8, 1.0);
     let mut lookfrom = Vec3::new(13.0, 2.0, 3.0);
@@ -96,7 +160,7 @@ fn main() {
     let mut aperture = 0.0;
     match 6 {
         1 => {
-            siz = 1080;
+            // siz = 1080;
             objects = scenes::big_random_scene();
             background = Vec3::zero();
             lookfrom = Vec3::new(23.0, 3.0, 5.0);
@@ -120,13 +184,27 @@ fn main() {
             lookat = Vec3::new(0.0, 2.0, 0.0);
         }
         _ => {
-            siz = 600;
+            siz = 1080;
             ratio = 1.0;
             objects = scenes::cornell_box();
             background = Vec3::zero();
             lookfrom = Vec3::new(278.0, 278.0, -800.0);
             lookat = Vec3::new(278.0, 278.0, 0.0);
             vfov = 40.0;
+            sample_per_pixel = 1000;
+            lights.add(Arc::new(XZRect::new(
+                213.0,
+                343.0,
+                227.0,
+                332.0,
+                554.0,
+                Arc::new(Lambertian::new(Vec3::zero())),
+            )));
+            lights.add(Arc::new(Sphere::new(
+                Vec3::new(190.0, 90.0, 190.0),
+                90.0,
+                Arc::new(Lambertian::new(Vec3::zero())),
+            )));
         }
     }
     let image_w: u32 = (siz as f64 * ratio) as u32;
@@ -136,6 +214,15 @@ fn main() {
     let mut world = HitTableList::new();
     world.add(Arc::new(BVHNode::new(&mut objects, 0.0, 1.0)));
     let world = Arc::new(world);
+    let lights = Arc::new(lights);
+    // let lights = Arc::new(XZRect::new(
+    //     213.0,
+    //     343.0,
+    //     227.0,
+    //     332.0,
+    //     554.0,
+    //     Arc::new(Lambertian::new(Vec3::zero())),
+    // ));
     // not use BVH
     // let world = Arc::new(objects);
 
@@ -150,6 +237,7 @@ fn main() {
         let tx = tx.clone();
         let world_ptr = world.clone();
         let cam_ptr = cam.clone();
+        let lights_ptr = lights.clone();
         pool.execute(move || {
             let row_begin = image_h as usize * i / n_jobs;
             let row_end = image_h as usize * (i + 1) / n_jobs;
@@ -167,7 +255,8 @@ fn main() {
                         let v = (j as f64 + rand::random::<f64>()) / (image_h - 1) as f64;
 
                         let r = cam_ptr.get_ray(u, v);
-                        pixel_color += ray_color(&r, &background, &world_ptr, MAX_DEPTH);
+                        pixel_color +=
+                            ray_color(&r, &background, &world_ptr, lights_ptr.clone(), MAX_DEPTH);
                     }
                     write_color(i, img_j, sample_per_pixel, &mut img_tmp, pixel_color);
                 }

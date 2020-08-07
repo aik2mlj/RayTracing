@@ -247,6 +247,9 @@ pub fn cornell_box() -> HitTableList {
     )));
 
     // boxes
+
+    let aluminum = Arc::new(Metal::new(Vec3::new(0.8, 0.85, 0.88), 0.0));
+
     let box1 = Arc::new(Box::new(
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(165.0, 330.0, 165.0),
@@ -262,20 +265,27 @@ pub fn cornell_box() -> HitTableList {
     // ));
     world.add(box1);
 
-    let box2 = Arc::new(Box::new(
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(165.0, 165.0, 165.0),
-        white.clone(),
-    ));
-    // let box2 = Arc::new(RotateZ::new(box2, -30.0));
-    let box2 = Arc::new(RotateY::new(box2, -30.0));
-    let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
-    // let box2 = Arc::new(ConstantMedium::new(
-    //     box2,
-    //     0.01,
-    //     Arc::new(Isotropic::new_from_color(Vec3::ones())),
+    // let box2 = Arc::new(Box::new(
+    //     Vec3::new(0.0, 0.0, 0.0),
+    //     Vec3::new(165.0, 165.0, 165.0),
+    //     white.clone(),
     // ));
-    world.add(box2);
+    // // let box2 = Arc::new(RotateZ::new(box2, -30.0));
+    // let box2 = Arc::new(RotateY::new(box2, -30.0));
+    // let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
+    // // let box2 = Arc::new(ConstantMedium::new(
+    // //     box2,
+    // //     0.01,
+    // //     Arc::new(Isotropic::new_from_color(Vec3::ones())),
+    // // ));
+    // world.add(box2);
+    let glass = Arc::new(Dielectric::new(1.5));
+    let ball = Arc::new(Sphere::new(
+        Vec3::new(190.0, 90.0, 190.0),
+        90.0,
+        glass.clone(),
+    ));
+    world.add(ball);
 
     world
 }

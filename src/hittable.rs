@@ -1,5 +1,6 @@
 use crate::bvh::*;
 use crate::material::*;
+use crate::onb::*;
 use crate::ray::Ray;
 use crate::shared_tools::*;
 use crate::vec3::Vec3;
@@ -33,6 +34,12 @@ impl HitRecord {
 pub trait Hittable: Send + Sync {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
     fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB>;
+    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+        0.0
+    }
+    fn random(&self, o: Vec3) -> Vec3 {
+        Vec3::new(1.0, 0.0, 0.0)
+    }
 }
 
 pub struct HitTableList {
@@ -85,6 +92,20 @@ impl Hittable for HitTableList {
             }
         }
         Some(ret)
+    }
+
+    // get a mixture of pdf values
+    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+        let weight = 1.0 / self.objects.len() as f64;
+        let mut ret: f64 = 0.0;
+        for ob in self.objects.iter() {
+            ret += weight * ob.pdf_value(o, v);
+        }
+        ret
+    }
+
+    fn random(&self, o: Vec3) -> Vec3 {
+        self.objects[rand::random::<usize>() % self.objects.len()].random(o)
     }
 }
 
@@ -153,8 +174,34 @@ impl Hittable for Sphere {
             self.center + Vec3::new(self.radius, self.radius, self.radius),
         ))
     }
+
+    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+        if let Some(rec) = self.hit(&Ray::new(o, v), 0.001, f64::MAX) {
+            let cos_theta_max =
+                (1.0 - self.radius * self.radius / (self.center - o).squared_length()).sqrt();
+            let solid_angle = 2.0 * PI * (1.0 - cos_theta_max);
+            1.0 / solid_angle
+        } else {
+            0.0
+        }
+    }
+
+    fn random(&self, o: Vec3) -> Vec3 {
+        let dir = self.center - o;
+        let distance_squared = dir.squared_length();
+        let uvw = ONB::build_from_w(&dir);
+        uvw.local(&Vec3::rand_to_sphere(self.radius, distance_squared))
+    }
 }
 impl Sphere {
+    pub fn new(center: Vec3, radius: f64, mat_ptr: Arc<dyn Material>) -> Self {
+        Self {
+            center,
+            radius,
+            mat_ptr,
+        }
+    }
+
     fn get_uv(p: Vec3) -> (f64, f64) {
         // put a 2D UV onto the surface of a sphere
         let phi = p.z.atan2(p.x);
@@ -254,6 +301,25 @@ impl Hittable for XZRect {
             Vec3::new(self.x0, self.k - 0.0001, self.z0),
             Vec3::new(self.x1, self.k + 0.0001, self.z1),
         ))
+    }
+    fn pdf_value(&self, origin: Vec3, v: Vec3) -> f64 {
+        if let Some(rec) = self.hit(&Ray::new(origin, v), 0.001, f64::MAX) {
+            let area = (self.x1 - self.x0) * (self.z1 - self.z0);
+            let distance_squared = rec.t * rec.t * v.squared_length();
+            let cos = (v * rec.normal / v.length()).abs();
+
+            distance_squared / (cos * area)
+        } else {
+            0.0
+        }
+    }
+    fn random(&self, origin: Vec3) -> Vec3 {
+        let random_point = Vec3::new(
+            random_f64(self.x0, self.x1),
+            self.k,
+            random_f64(self.z0, self.z1),
+        );
+        random_point - origin
     }
 }
 impl XZRect {
