@@ -193,12 +193,16 @@ pub struct Isotropic {
 }
 impl Material for Isotropic {
     fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
-        None /*
-             Some((
-                 self.albedo.value(rec.u, rec.v, rec.p),
-                 Ray::new(rec.p, Vec3::rand_in_unit_sphere()),
-                 0.0,
-             ))*/
+        Some(ScatterRecord {
+            specular_ray: Some(Ray::new(rec.p, Vec3::rand_in_unit_sphere())),
+            attenuation: self.albedo.value(rec.u, rec.v, rec.p),
+            pdf_ptr: None,
+        })
+        // Some((
+        //     self.albedo.value(rec.u, rec.v, rec.p),
+        //     Ray::new(rec.p, Vec3::rand_in_unit_sphere()),
+        //     0.0,
+        // ))
     }
 }
 impl Isotropic {

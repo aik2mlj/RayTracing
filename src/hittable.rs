@@ -96,6 +96,9 @@ impl Hittable for HitTableList {
 
     // get a mixture of pdf values
     fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+        if self.objects.len() == 0 {
+            return 0.0;
+        }
         let weight = 1.0 / self.objects.len() as f64;
         let mut ret: f64 = 0.0;
         for ob in self.objects.iter() {
@@ -105,7 +108,11 @@ impl Hittable for HitTableList {
     }
 
     fn random(&self, o: Vec3) -> Vec3 {
-        self.objects[rand::random::<usize>() % self.objects.len()].random(o)
+        if self.objects.len() == 0 {
+            Vec3::new(1.0, 0.0, 0.0)
+        } else {
+            self.objects[rand::random::<usize>() % self.objects.len()].random(o)
+        }
     }
 }
 

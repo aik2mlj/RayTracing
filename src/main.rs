@@ -67,7 +67,7 @@ fn ray_color(
     r: &Ray,
     background: &Vec3,
     objects: &HitTableList,
-    lights: Arc<dyn Hittable>,
+    lights: Arc<HitTableList>,
     depth: u32,
 ) -> Vec3 {
     // If we've exceeded the ray bounce limit, no more light is gathered.
@@ -104,14 +104,19 @@ fn ray_color(
                 return ray_color(&specular_ray, &background, objects, lights, depth - 1)
                     .elemul(srec.attenuation);
             }
-            let light_ptr = Arc::new(HittablePDF::new(lights.clone(), rec.p));
             // let p1 = Arc::new(CosinePDF::build_from_w(&rec.normal));
             if srec.pdf_ptr.is_none() {
                 panic!("pdf_ptr is None!");
             }
-            // let p = MixturePDF::new(light_ptr, srec.pdf_ptr.unwrap());
-            let p = MixturePDF::new(light_ptr, srec.pdf_ptr.unwrap());
-            // let p = p1;
+            let p = if lights.objects.len() == 0 {
+                let pdf_ptr = srec.pdf_ptr.unwrap();
+                MixturePDF::new(pdf_ptr.clone(), pdf_ptr)
+            } else {
+                let light_ptr = Arc::new(HittablePDF::new(lights.clone(), rec.p));
+                MixturePDF::new(light_ptr, srec.pdf_ptr.unwrap())
+            };
+
+            // let p = srec.pdf_ptr.unwrap();
 
             // let p = CosinePDF::build_from_w(&rec.normal);
             let scattered = Ray::new(rec.p, p.generate());
@@ -183,15 +188,38 @@ fn main() {
             lookfrom = Vec3::new(26.0, 3.0, 6.0);
             lookat = Vec3::new(0.0, 2.0, 0.0);
         }
+        6 => {
+            objects = scenes::book2_final_scene();
+            siz = 1600;
+            sample_per_pixel = 1000;
+            ratio = 1.0;
+            background = Vec3::zero();
+            lookfrom = Vec3::new(478.0, 278.0, -600.0);
+            lookat = Vec3::new(278.0, 278.0, 0.0);
+            vfov = 40.0;
+            lights.add(Arc::new(XZRect::new(
+                123.0,
+                423.0,
+                147.0,
+                412.0,
+                554.0,
+                Arc::new(Lambertian::new(Vec3::zero())),
+            )));
+            lights.add(Arc::new(Sphere::new(
+                Vec3::new(260.0, 150.0, 45.0),
+                50.0,
+                Arc::new(Lambertian::new(Vec3::zero())),
+            )));
+        }
         _ => {
-            siz = 1080;
+            siz = 600;
             ratio = 1.0;
             objects = scenes::cornell_box();
             background = Vec3::zero();
             lookfrom = Vec3::new(278.0, 278.0, -800.0);
             lookat = Vec3::new(278.0, 278.0, 0.0);
             vfov = 40.0;
-            sample_per_pixel = 1000;
+            sample_per_pixel = 200;
             lights.add(Arc::new(XZRect::new(
                 213.0,
                 343.0,
@@ -211,9 +239,9 @@ fn main() {
     let image_h: u32 = siz;
 
     // use BVH
-    let mut world = HitTableList::new();
-    world.add(Arc::new(BVHNode::new(&mut objects, 0.0, 1.0)));
-    let world = Arc::new(world);
+    // let mut world = HitTableList::new();
+    // world.add(Arc::new(BVHNode::new(&mut objects, 0.0, 1.0)));
+    // let world = Arc::new(world);
     let lights = Arc::new(lights);
     // let lights = Arc::new(XZRect::new(
     //     213.0,
@@ -224,7 +252,7 @@ fn main() {
     //     Arc::new(Lambertian::new(Vec3::zero())),
     // ));
     // not use BVH
-    // let world = Arc::new(objects);
+    let world = Arc::new(objects);
 
     // Camera
     let v_up = Vec3::new(0.0, 1.0, 0.0);
