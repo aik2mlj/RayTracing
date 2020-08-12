@@ -4,6 +4,7 @@ use crate::material::*;
 use crate::shared_tools::*;
 use crate::texture::*;
 use crate::Vec3;
+use raytracer_codegen::make_spheres_impl;
 use std::sync::Arc;
 
 pub fn big_random_scene() -> HitTableList {
@@ -95,6 +96,8 @@ pub fn big_random_scene() -> HitTableList {
     world
 }
 
+make_spheres_impl! {}
+
 pub fn two_spheres() -> HitTableList {
     let mut world = HitTableList::new();
 
@@ -136,6 +139,7 @@ pub fn one_ball() -> HitTableList {
         radius: 2.0,
         mat_ptr: checker_material.clone(),
     }));
+    let mut tmp = make_spheres();
     world
 }
 

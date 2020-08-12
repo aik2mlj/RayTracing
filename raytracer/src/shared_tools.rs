@@ -121,9 +121,9 @@ impl Perlin {
         for di in 0..2 {
             for dj in 0..2 {
                 for dk in 0..2 {
-                    c[di][dj][dk] = self.ranvec[self.perm_x[(i as usize + di) & 255]
-                        ^ self.perm_y[(j as usize + dj) & 255]
-                        ^ self.perm_z[(k as usize + dk) & 255]];
+                    c[di][dj][dk] = self.ranvec[self.perm_x[(i + di as i32) as usize & 255]
+                        ^ self.perm_y[(j + dj as i32) as usize & 255]
+                        ^ self.perm_z[(k + dk as i32) as usize & 255]];
                 }
             }
         }

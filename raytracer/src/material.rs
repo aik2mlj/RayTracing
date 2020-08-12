@@ -37,8 +37,8 @@ pub struct Lambertian {
 }
 impl Material for Lambertian {
     fn scatter(&self, _ray_in: &Ray, rec: &HitRecord) -> Option<ScatterRecord> {
-        let uvw = ONB::build_from_w(&rec.normal);
-        let direction = uvw.local(&Vec3::rand_cosine_direction());
+        // let uvw = ONB::build_from_w(&rec.normal);
+        // let direction = uvw.local(&Vec3::rand_cosine_direction());
         // let scatter_dir = rec.normal + Vec3::random_unit_vector(); // Lambertian scattering
         // let scattered = Ray::new(rec.p, direction.unit());
         Some(ScatterRecord {

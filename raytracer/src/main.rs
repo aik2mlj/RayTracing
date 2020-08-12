@@ -163,7 +163,7 @@ fn main() {
     let mut vfov = 20.0;
     let mut dist_to_focus = 10.0;
     let mut aperture = 0.0;
-    match 6 {
+    match 3 {
         1 => {
             // siz = 1080;
             objects = scenes::big_random_scene();

@@ -114,6 +114,21 @@ impl Hittable for BVHNode {
     }
 }
 impl BVHNode {
+    pub fn construct(
+        left: Arc<dyn Hittable>,
+        right: Arc<dyn Hittable>,
+        time0: f64,
+        time1: f64,
+    ) -> Self {
+        let box_left = left.bounding_box(time0, time1).unwrap();
+        let box_right = right.bounding_box(time0, time1).unwrap();
+
+        Self {
+            left,
+            right,
+            _box: AABB::surrounding_box(box_left, box_right),
+        }
+    }
     pub fn new(list: &mut HitTableList, time0: f64, time1: f64) -> Self {
         let len = list.objects.len();
         Self::new_(&mut list.objects, 0, len, time0, time1)
