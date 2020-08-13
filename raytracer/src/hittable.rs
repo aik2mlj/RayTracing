@@ -257,6 +257,25 @@ impl Hittable for XYRect {
             Vec3::new(self.x1, self.y1, self.k + 0.0001),
         ))
     }
+    fn pdf_value(&self, origin: Vec3, v: Vec3) -> f64 {
+        if let Some(rec) = self.hit(&Ray::new(origin, v), 0.001, f64::MAX) {
+            let area = (self.x1 - self.x0) * (self.y1 - self.y0);
+            let distance_squared = rec.t * rec.t * v.squared_length();
+            let cos = (v * rec.normal / v.length()).abs();
+
+            distance_squared / (cos * area)
+        } else {
+            0.0
+        }
+    }
+    fn random(&self, origin: Vec3) -> Vec3 {
+        let random_point = Vec3::new(
+            random_f64(self.x0, self.x1),
+            random_f64(self.y0, self.y1),
+            self.k,
+        );
+        random_point - origin
+    }
 }
 impl XYRect {
     pub fn new(x0: f64, x1: f64, y0: f64, y1: f64, k: f64, mat_ptr: Arc<dyn Material>) -> Self {
@@ -382,6 +401,25 @@ impl Hittable for YZRect {
             Vec3::new(self.k + 0.0001, self.y1, self.z1),
         ))
     }
+    fn pdf_value(&self, origin: Vec3, v: Vec3) -> f64 {
+        if let Some(rec) = self.hit(&Ray::new(origin, v), 0.001, f64::MAX) {
+            let area = (self.y1 - self.y0) * (self.z1 - self.z0);
+            let distance_squared = rec.t * rec.t * v.squared_length();
+            let cos = (v * rec.normal / v.length()).abs();
+
+            distance_squared / (cos * area)
+        } else {
+            0.0
+        }
+    }
+    fn random(&self, origin: Vec3) -> Vec3 {
+        let random_point = Vec3::new(
+            self.k,
+            random_f64(self.y0, self.y1),
+            random_f64(self.z0, self.z1),
+        );
+        random_point - origin
+    }
 }
 impl YZRect {
     pub fn new(y0: f64, y1: f64, z0: f64, z1: f64, k: f64, mat_ptr: Arc<dyn Material>) -> Self {
@@ -407,6 +445,18 @@ impl Hittable for Box {
     }
     fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
         Some(AABB::new(self.min, self.max))
+    }
+    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+        let weight = 1.0 / self.sides.objects.len() as f64;
+        let mut ret = 0.0;
+        for ob in &self.sides.objects {
+            ret += weight * ob.pdf_value(o, v);
+        }
+        ret
+    }
+    fn random(&self, o: Vec3) -> Vec3 {
+        let rand_num = rand::random::<usize>() % 6;
+        self.sides.objects[rand_num].random(o)
     }
 }
 impl Box {
@@ -491,6 +541,12 @@ impl Hittable for Translate {
         } else {
             None
         }
+    }
+    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+        self.ptr.pdf_value(o - self.offset, v)
+    }
+    fn random(&self, o: Vec3) -> Vec3 {
+        self.ptr.random(o - self.offset)
     }
 }
 impl Translate {
@@ -621,6 +677,32 @@ impl Hittable for RotateY {
     }
     fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
         self.bbox.clone()
+    }
+    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
+        let rotated_o = Vec3::new(
+            self.cos * o.x - self.sin * o.z,
+            o.y,
+            self.sin * o.x + self.cos * o.z,
+        );
+        let rotated_v = Vec3::new(
+            self.cos * v.x - self.sin * v.z,
+            v.y,
+            self.sin * v.x + self.cos * v.z,
+        );
+        self.ptr.pdf_value(rotated_o, rotated_v)
+    }
+    fn random(&self, o: Vec3) -> Vec3 {
+        let rotated_o = Vec3::new(
+            self.cos * o.x - self.sin * o.z,
+            o.y,
+            self.sin * o.x + self.cos * o.z,
+        );
+        let ret = self.ptr.random(rotated_o);
+        Vec3::new(
+            self.cos * ret.x + self.sin * ret.z,
+            ret.y,
+            -self.sin * ret.x + self.cos * ret.z,
+        )
     }
 }
 impl RotateY {

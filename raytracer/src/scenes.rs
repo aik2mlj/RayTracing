@@ -345,36 +345,29 @@ pub fn cornell_box() -> HitTableList {
         555.0,
         white.clone(),
     )));
-    world.add(Arc::new(XYRect::new(
-        0.0,
-        555.0,
-        0.0,
-        555.0,
-        555.0,
-        white.clone(),
-    )));
+    world.add(Arc::new(XYRect::new(0.0, 555.0, 0.0, 555.0, 555.0, white)));
 
     // boxes
 
-    // let aluminum = Arc::new(Metal::new(Vec3::new(0.8, 0.85, 0.88), 0.0));
-    let checker = Arc::new(CheckerTexture::new(
-        Vec3::new(0.2, 0.3, 0.1),
-        Vec3::new(0.9, 0.9, 0.9),
-    ));
+    let aluminum = Arc::new(Metal::new(Vec3::new(0.8, 0.85, 0.88), 0.0));
+    // let checker = Arc::new(CheckerTexture::new(
+    //     Vec3::new(0.2, 0.3, 0.1),
+    //     Vec3::new(0.9, 0.9, 0.9),
+    // ));
 
     let box1 = Arc::new(Box::new(
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(165.0, 330.0, 165.0),
-        white,
+        aluminum,
     ));
     // let box1 = Arc::new(RotateZ::new(box1, 38.0));
     let box1 = Arc::new(RotateY::new(box1, 38.0));
     let box1 = Arc::new(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
-    let box1 = Arc::new(ConstantMedium::new(
-        box1,
-        0.01,
-        Arc::new(Isotropic::new_from_texture(checker)),
-    ));
+    // let box1 = Arc::new(ConstantMedium::new(
+    //     box1,
+    //     0.01,
+    //     Arc::new(Isotropic::new_from_texture(checker)),
+    // ));
     world.add(box1);
 
     // let box2 = Arc::new(Box::new(

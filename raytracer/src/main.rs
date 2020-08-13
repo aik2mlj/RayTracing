@@ -166,7 +166,7 @@ fn main() {
     let mut vfov = 20.0;
     let mut dist_to_focus = 10.0;
     let mut aperture = 0.0;
-    match 10 {
+    match 7 {
         0 => {
             objects = scenes::former_three_ball_scene();
         }
@@ -218,14 +218,14 @@ fn main() {
             )));
         }
         7 => {
-            siz = 600;
+            siz = 1000;
             ratio = 1.0;
             objects = scenes::cornell_box();
             background = Vec3::zero();
             lookfrom = Vec3::new(278.0, 278.0, -800.0);
             lookat = Vec3::new(278.0, 278.0, 0.0);
             vfov = 40.0;
-            sample_per_pixel = 200;
+            sample_per_pixel = 256;
             lights.add(Arc::new(XZRect::new(
                 213.0,
                 343.0,
@@ -239,6 +239,18 @@ fn main() {
                 90.0,
                 Arc::new(Lambertian::new(Vec3::zero())),
             )));
+            // denoise the reflection
+            let box_up = Arc::new(XZRect::new(
+                0.0,
+                165.0,
+                0.0,
+                165.0,
+                330.0,
+                Arc::new(Lambertian::new(Vec3::zero())),
+            ));
+            let box_up = Arc::new(RotateY::new(box_up, 38.0));
+            let box_up = Arc::new(Translate::new(box_up, Vec3::new(265.0, 0.0, 295.0)));
+            lights.add(box_up);
         }
         _ => {
             // static bvh
