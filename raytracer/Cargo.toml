@@ -11,5 +11,4 @@ image = "0.23"
 indicatif = "0.15"
 rand = "0.5.5"
 threadpool = "1.8"
-rusttype = "0.9"
 raytracer_codegen = { path = "../raytracer_codegen" }

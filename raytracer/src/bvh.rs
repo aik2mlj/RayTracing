@@ -81,6 +81,51 @@ impl AABB {
 
 // a node that bound two node
 // real objects(Sphere, etc.) live at the leaves of this hierarchy
+pub struct BVHNodeStatic<L: Hittable, R: Hittable> {
+    pub left: Arc<L>,  // left child
+    pub right: Arc<R>, // right child
+    pub _box: AABB,
+}
+impl<L: Hittable, R: Hittable> Hittable for BVHNodeStatic<L, R> {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        if !self._box.hit(r, t_min, t_max) {
+            return None;
+        }
+
+        let left_tmp_ret = self.left.hit(r, t_min, t_max);
+        if let Some(left_rec) = left_tmp_ret {
+            let right_tmp_ret = self.right.hit(r, t_min, left_rec.t);
+            if right_tmp_ret.is_some() {
+                right_tmp_ret
+            } else {
+                Some(left_rec)
+            }
+        } else {
+            let right_tmp_ret = self.right.hit(r, t_min, t_max);
+            if right_tmp_ret.is_some() {
+                right_tmp_ret
+            } else {
+                None
+            }
+        }
+    }
+    fn bounding_box(&self, _t0: f64, _t1: f64) -> Option<AABB> {
+        Some(self._box.clone())
+    }
+}
+impl<L: Hittable, R: Hittable> BVHNodeStatic<L, R> {
+    pub fn construct(left: Arc<L>, right: Arc<R>, time0: f64, time1: f64) -> Self {
+        let box_left = left.bounding_box(time0, time1).unwrap();
+        let box_right = right.bounding_box(time0, time1).unwrap();
+
+        Self {
+            left,
+            right,
+            _box: AABB::surrounding_box(box_left, box_right),
+        }
+    }
+}
+
 pub struct BVHNode {
     pub left: Arc<dyn Hittable>,  // left child
     pub right: Arc<dyn Hittable>, // right child
@@ -114,21 +159,6 @@ impl Hittable for BVHNode {
     }
 }
 impl BVHNode {
-    pub fn construct(
-        left: Arc<dyn Hittable>,
-        right: Arc<dyn Hittable>,
-        time0: f64,
-        time1: f64,
-    ) -> Self {
-        let box_left = left.bounding_box(time0, time1).unwrap();
-        let box_right = right.bounding_box(time0, time1).unwrap();
-
-        Self {
-            left,
-            right,
-            _box: AABB::surrounding_box(box_left, box_right),
-        }
-    }
     pub fn new(list: &mut HitTableList, time0: f64, time1: f64) -> Self {
         let len = list.objects.len();
         Self::new_(&mut list.objects, 0, len, time0, time1)

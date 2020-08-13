@@ -34,111 +34,37 @@ impl HitRecord {
 pub trait Hittable: Send + Sync {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
     fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB>;
-    fn pdf_value(&self, _o: Vec3, _v: Vec3) -> f64 {
+    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
         0.0
     }
-    fn random(&self, _o: Vec3) -> Vec3 {
+    fn random(&self, o: Vec3) -> Vec3 {
         Vec3::new(1.0, 0.0, 0.0)
     }
 }
 
-pub struct HitTableList {
-    // a list of hit-tables that have implemented Hittable trait
-    pub objects: Vec<Arc<dyn Hittable>>,
-}
-impl Default for HitTableList {
-    fn default() -> Self {
-        Self { objects: vec![] }
-    }
-}
-impl HitTableList {
-    pub fn add(&mut self, new_item: Arc<dyn Hittable>) {
-        self.objects.push(new_item);
-    }
-}
-impl Hittable for HitTableList {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
-        let mut closest_so_far = t_max;
-        let mut ret = None;
-
-        for ob in self.objects.iter() {
-            let tmp_rec = ob.hit(r, t_min, closest_so_far);
-            if let Some(rec_value) = tmp_rec {
-                closest_so_far = rec_value.t;
-                ret = Some(rec_value);
-            }
-        }
-        ret
-    }
-
-    // bound all the stuff together
-    fn bounding_box(&self, t0: f64, t1: f64) -> Option<AABB> {
-        if self.objects.is_empty() {
-            return None;
-        }
-
-        let mut first_box = true;
-        let mut ret = AABB::default();
-        for ob in self.objects.iter() {
-            let tmp_ret = ob.bounding_box(t0, t1);
-            if let Some(tmp_box) = tmp_ret {
-                ret = if first_box {
-                    tmp_box
-                } else {
-                    AABB::surrounding_box(tmp_box, ret)
-                };
-                first_box = false;
-            } else {
-                return None;
-            }
-        }
-        Some(ret)
-    }
-
-    // get a mixture of pdf values
-    fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
-        if self.objects.is_empty() {
-            return 0.0;
-        }
-        let weight = 1.0 / self.objects.len() as f64;
-        let mut ret: f64 = 0.0;
-        for ob in self.objects.iter() {
-            ret += weight * ob.pdf_value(o, v);
-        }
-        ret
-    }
-
-    fn random(&self, o: Vec3) -> Vec3 {
-        if self.objects.is_empty() {
-            Vec3::new(1.0, 0.0, 0.0)
-        } else {
-            self.objects[rand::random::<usize>() % self.objects.len()].random(o)
-        }
-    }
-}
 
 #[derive(Clone)]
-pub struct Sphere {
+pub struct Sphere<M: Material + 'static> {
     pub center: Vec3,
     pub radius: f64,
-    pub mat_ptr: Arc<dyn Material>,
+    pub mat_ptr: Arc<M>,
 }
-impl Hittable for Sphere {
-    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
-        let oc = ray.orig - self.center;
-        let _a = ray.dir.squared_length();
-        let half_b = oc * ray.dir;
-        let _c = oc.squared_length() - self.radius * self.radius;
-        let delta = half_b * half_b - _a * _c;
+impl<M: Material> Hittable for Sphere<M> {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let oc = r.orig - self.center;
+        let a = r.dir.squared_length();
+        let half_b = oc * r.dir;
+        let c = oc.squared_length() - self.radius * self.radius;
+        let delta = half_b * half_b - a * c;
 
         if delta > 0.0 {
             let delta_sqrt = delta.sqrt();
-            let root = (-half_b - delta_sqrt) / _a;
+            let root = (-half_b - delta_sqrt) / a;
 
             if (root < t_max) && (root > t_min) {
-                let ret_p = ray.at(root);
+                let ret_p = r.at(root);
                 let outward_normal = (ret_p - self.center) / self.radius;
-                let (u, v) = Sphere::get_uv(outward_normal);
+                let (u, v) = Sphere::<M>::get_uv(outward_normal);
                 let mut ret = HitRecord {
                     t: root,
                     p: ret_p,
@@ -149,15 +75,15 @@ impl Hittable for Sphere {
                     u,
                     v,
                 };
-                ret.set_face_normal(&ray, &outward_normal);
+                ret.set_face_normal(&r, &outward_normal);
                 return Some(ret);
             }
 
-            let root = (-half_b + delta_sqrt) / _a;
+            let root = (-half_b + delta_sqrt) / a;
             if root < t_max && root > t_min {
-                let ret_p = ray.at(root);
+                let ret_p = r.at(root);
                 let outward_normal = (ret_p - self.center) / self.radius;
-                let (u, v) = Sphere::get_uv(outward_normal);
+                let (u, v) = Sphere::<M>::get_uv(outward_normal);
                 let mut ret = HitRecord {
                     t: root,
                     p: ret_p,
@@ -168,7 +94,7 @@ impl Hittable for Sphere {
                     u,
                     v,
                 };
-                ret.set_face_normal(&ray, &outward_normal);
+                ret.set_face_normal(&r, &outward_normal);
                 return Some(ret);
             }
         }
@@ -184,7 +110,7 @@ impl Hittable for Sphere {
     }
 
     fn pdf_value(&self, o: Vec3, v: Vec3) -> f64 {
-        if let Some(_rec) = self.hit(&Ray::new(o, v), 0.001, f64::MAX) {
+        if let Some(rec) = self.hit(&Ray::new(o, v), 0.001, f64::MAX) {
             let cos_theta_max =
                 (1.0 - self.radius * self.radius / (self.center - o).squared_length()).sqrt();
             let solid_angle = 2.0 * PI * (1.0 - cos_theta_max);
@@ -201,8 +127,8 @@ impl Hittable for Sphere {
         uvw.local(&Vec3::rand_to_sphere(self.radius, distance_squared))
     }
 }
-impl Sphere {
-    pub fn new(center: Vec3, radius: f64, mat_ptr: Arc<dyn Material>) -> Self {
+impl<M: Material> Sphere<M> {
+    pub fn new(center: Vec3, radius: f64, mat_ptr: Arc<M>) -> Self {
         Self {
             center,
             radius,
@@ -219,15 +145,15 @@ impl Sphere {
 }
 
 #[derive(Clone)]
-pub struct XYRect {
-    pub mat_ptr: Arc<dyn Material>,
+pub struct XYRect<M: Material + 'static> {
+    pub mat_ptr: Arc<M>,
     pub x0: f64,
     pub x1: f64,
     pub y0: f64,
     pub y1: f64,
     pub k: f64,
 }
-impl Hittable for XYRect {
+impl<M: Material> Hittable for XYRect<M> {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let t = (self.k - r.orig.z) / r.dir.z;
         if t < t_min || t > t_max {
@@ -258,8 +184,8 @@ impl Hittable for XYRect {
         ))
     }
 }
-impl XYRect {
-    pub fn new(x0: f64, x1: f64, y0: f64, y1: f64, k: f64, mat_ptr: Arc<dyn Material>) -> Self {
+impl<M: Material> XYRect<M> {
+    pub fn new(x0: f64, x1: f64, y0: f64, y1: f64, k: f64, mat_ptr: Arc<M>) -> Self {
         Self {
             x0,
             x1,
@@ -272,15 +198,15 @@ impl XYRect {
 }
 
 #[derive(Clone)]
-pub struct XZRect {
-    pub mat_ptr: Arc<dyn Material>,
+pub struct XZRect<M: Material + 'static> {
+    pub mat_ptr: Arc<M>,
     pub x0: f64,
     pub x1: f64,
     pub z0: f64,
     pub z1: f64,
     pub k: f64,
 }
-impl Hittable for XZRect {
+impl<M: Material> Hittable for XZRect<M> {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let t = (self.k - r.orig.y) / r.dir.y;
         if t < t_min || t > t_max {
@@ -330,8 +256,8 @@ impl Hittable for XZRect {
         random_point - origin
     }
 }
-impl XZRect {
-    pub fn new(x0: f64, x1: f64, z0: f64, z1: f64, k: f64, mat_ptr: Arc<dyn Material>) -> Self {
+impl<M: Material> XZRect<M> {
+    pub fn new(x0: f64, x1: f64, z0: f64, z1: f64, k: f64, mat_ptr: Arc<M>) -> Self {
         Self {
             x0,
             x1,
@@ -396,10 +322,11 @@ impl YZRect {
     }
 }
 
-pub struct Box {
+
+pub struct Box<M: Material> {
     pub min: Vec3,
     pub max: Vec3,
-    pub sides: HitTableList,
+    pub sides: crate::hittable::HitTableList,
 }
 impl Hittable for Box {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
@@ -411,7 +338,7 @@ impl Hittable for Box {
 }
 impl Box {
     pub fn new(min: Vec3, max: Vec3, mat_ptr: Arc<dyn Material>) -> Self {
-        let mut sides = HitTableList::default();
+        let mut sides = HitTableList::new();
         sides.add(Arc::new(XYRect::new(
             min.x,
             max.x,

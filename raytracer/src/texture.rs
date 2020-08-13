@@ -90,7 +90,7 @@ pub struct NoiseTexture {
     pub scale: f64,
 }
 impl Texture for NoiseTexture {
-    fn value(&self, u: f64, v: f64, p: Vec3) -> Vec3 {
+    fn value(&self, _u: f64, _v: f64, p: Vec3) -> Vec3 {
         Vec3::ones() * 0.5 * (1.0 + (self.scale * p.z + 10.0 * self.noise.turb(&p, 7)).sin())
     }
 }

@@ -2,12 +2,14 @@ mod bvh;
 mod camera;
 mod hittable;
 mod material;
+mod material_static;
 mod onb;
 mod pdf;
 mod ray;
 mod scenes;
 mod shared_tools;
 mod texture;
+// mod hittable_static;
 #[allow(clippy::float_cmp)]
 mod vec3;
 
@@ -33,7 +35,7 @@ const MAX_DEPTH: u32 = 50;
 // put pixel onto the image
 #[allow(clippy::eq_op)]
 #[allow(clippy::float_cmp)]
-fn write_color(x: u32, y: u32, sample_per_pixel: u32, img: &mut RgbImage, rgb: Vec3) {
+fn write_color(pixel_x: u32, pixel_y: u32, sample_per_pixel: u32, img: &mut RgbImage, rgb: Vec3) {
     // sqrt for Gamma Correction: gamma = 2.0
     let mut r = rgb.x;
     let mut g = rgb.y;
@@ -52,8 +54,8 @@ fn write_color(x: u32, y: u32, sample_per_pixel: u32, img: &mut RgbImage, rgb: V
     let g = (g / sample_per_pixel as f64).sqrt();
     let b = (b / sample_per_pixel as f64).sqrt();
     img.put_pixel(
-        x,
-        y,
+        pixel_x,
+        pixel_y,
         Rgb([
             (clamp(r, 0.0, 0.999) * 255.99) as u8,
             (clamp(g, 0.0, 0.999) * 255.99) as u8,
@@ -108,7 +110,7 @@ fn ray_color(
             if srec.pdf_ptr.is_none() {
                 panic!("pdf_ptr is None!");
             }
-            let p = if lights.objects.len() == 0 {
+            let p = if lights.objects.is_empty() {
                 let pdf_ptr = srec.pdf_ptr.unwrap();
                 MixturePDF::new(pdf_ptr.clone(), pdf_ptr)
             } else {
@@ -141,6 +143,7 @@ fn ray_color(
     // Vec3::new(1.0, 1.0, 1.0) * (1.0 - t) + Vec3::new(0.5, 0.7, 1.0) * t
 }
 
+#[allow(unused_assignments)]
 fn main() {
     let (tx, rx) = channel();
     let n_jobs: usize = 32;
@@ -155,15 +158,18 @@ fn main() {
     let mut ratio: f64 = 16.0 / 9.0;
     let mut sample_per_pixel: u32 = 256;
 
-    let mut lights = HitTableList::new();
-    let mut objects = HitTableList::new();
+    let mut lights = HitTableList::default();
+    let mut objects = HitTableList::default();
     let mut background = Vec3::new(0.7, 0.8, 1.0);
     let mut lookfrom = Vec3::new(13.0, 2.0, 3.0);
     let mut lookat = Vec3::zero();
     let mut vfov = 20.0;
     let mut dist_to_focus = 10.0;
     let mut aperture = 0.0;
-    match 3 {
+    match 10 {
+        0 => {
+            objects = scenes::former_three_ball_scene();
+        }
         1 => {
             // siz = 1080;
             objects = scenes::big_random_scene();
@@ -211,7 +217,7 @@ fn main() {
                 Arc::new(Lambertian::new(Vec3::zero())),
             )));
         }
-        _ => {
+        7 => {
             siz = 600;
             ratio = 1.0;
             objects = scenes::cornell_box();
@@ -233,6 +239,17 @@ fn main() {
                 90.0,
                 Arc::new(Lambertian::new(Vec3::zero())),
             )));
+        }
+        _ => {
+            // static bvh
+            siz = 1080;
+            sample_per_pixel = 256;
+            objects = scenes::static_scene();
+            background = Vec3::zero();
+            lookfrom = Vec3::new(23.0, 3.0, 5.0);
+            lookat = Vec3::new(0.0, 0.7, 0.0);
+            dist_to_focus = 23.0;
+            aperture = 0.1;
         }
     }
     let image_w: u32 = (siz as f64 * ratio) as u32;

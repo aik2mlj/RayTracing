@@ -4,21 +4,23 @@ use crate::material::*;
 use crate::shared_tools::*;
 use crate::texture::*;
 use crate::Vec3;
-use raytracer_codegen::make_spheres_impl;
+use raytracer_codegen::*;
 use std::sync::Arc;
 
+bvhnode_impl! {}
+
 pub fn big_random_scene() -> HitTableList {
-    let mut world = HitTableList::new();
+    let mut world = HitTableList::default();
     let checker = Arc::new(CheckerTexture::new(
         Vec3::new(0.2, 0.3, 0.1),
         Vec3::new(0.9, 0.9, 0.9),
     ));
     let earth_texture = Arc::new(ImageTexture::new("input/yyu2.jpg"));
-    let checker_material = Arc::new(Lambertian::from(checker.clone() as Arc<dyn Texture>));
+    let checker_material = Arc::new(Lambertian::from(checker as Arc<dyn Texture>));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -1000.0, 0.0),
         radius: 1000.0,
-        mat_ptr: checker_material.clone(),
+        mat_ptr: checker_material,
     }));
 
     let radius: f64 = 0.2;
@@ -96,17 +98,15 @@ pub fn big_random_scene() -> HitTableList {
     world
 }
 
-make_spheres_impl! {}
-
 pub fn two_spheres() -> HitTableList {
-    let mut world = HitTableList::new();
+    let mut world = HitTableList::default();
 
-    let checker = Arc::new(CheckerTexture::new(
-        Vec3::new(0.2, 0.3, 0.1),
-        Vec3::new(0.9, 0.9, 0.9),
-    ));
+    // let checker = Arc::new(CheckerTexture::new(
+    //     Vec3::new(0.2, 0.3, 0.1),
+    //     Vec3::new(0.9, 0.9, 0.9),
+    // ));
     let pertext = Arc::new(NoiseTexture::new(4.0));
-    let checker_material = Arc::new(Lambertian::from(pertext.clone() as Arc<dyn Texture>));
+    let checker_material = Arc::new(Lambertian::from(pertext as Arc<dyn Texture>));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -10.0, 0.0),
         radius: 10.0,
@@ -115,20 +115,20 @@ pub fn two_spheres() -> HitTableList {
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 10.0, 0.0),
         radius: 10.0,
-        mat_ptr: checker_material.clone(),
+        mat_ptr: checker_material,
     }));
     world
 }
 
 pub fn one_ball() -> HitTableList {
-    let mut world = HitTableList::new();
+    let mut world = HitTableList::default();
 
-    let checker = Arc::new(CheckerTexture::new(
-        Vec3::new(0.2, 0.3, 0.1),
-        Vec3::new(0.9, 0.9, 0.9),
-    ));
+    // let checker = Arc::new(CheckerTexture::new(
+    //     Vec3::new(0.2, 0.3, 0.1),
+    //     Vec3::new(0.9, 0.9, 0.9),
+    // ));
     let pertext = Arc::new(NoiseTexture::new(4.0));
-    let checker_material = Arc::new(Lambertian::from(pertext.clone() as Arc<dyn Texture>));
+    let checker_material = Arc::new(Lambertian::from(pertext as Arc<dyn Texture>));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -1000.0, 0.0),
         radius: 1000.0,
@@ -137,26 +137,27 @@ pub fn one_ball() -> HitTableList {
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 2.0, 0.0),
         radius: 2.0,
-        mat_ptr: checker_material.clone(),
+        mat_ptr: checker_material,
     }));
-    let mut tmp = make_spheres();
+    // let mut tmp = make_spheres();
+    // let tmp = make_BVHNode!(100);
     world
 }
 
 pub fn earth() -> HitTableList {
-    let mut world = HitTableList::new();
+    let mut world = HitTableList::default();
     let earth_texture = Arc::new(ImageTexture::new("input/yyu2.jpg"));
     let earth_surface = Arc::new(Lambertian::new_from_texture(earth_texture));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 0.0, 0.0),
         radius: 2.0,
-        mat_ptr: earth_surface.clone(),
+        mat_ptr: earth_surface,
     }));
     world
 }
 
 pub fn former_three_ball_scene() -> HitTableList {
-    let mut world = HitTableList::new();
+    let mut world = HitTableList::default();
     let material_ground = Arc::new(Lambertian::new(Vec3::new(0.8, 0.8, 0.0)));
     let material_center = Arc::new(Lambertian::new(Vec3::new(0.1, 0.2, 0.5)));
     let material_left = Arc::new(Dielectric::new(1.5));
@@ -165,12 +166,12 @@ pub fn former_three_ball_scene() -> HitTableList {
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -100.5, -1.0),
         radius: 100.0,
-        mat_ptr: material_ground.clone(),
+        mat_ptr: material_ground,
     }));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 0.0, -1.0),
         radius: 0.5,
-        mat_ptr: material_center.clone(),
+        mat_ptr: material_center,
     }));
     world.add(Arc::new(Sphere {
         center: Vec3::new(-1.0, 0.0, -1.0),
@@ -180,24 +181,24 @@ pub fn former_three_ball_scene() -> HitTableList {
     world.add(Arc::new(Sphere {
         center: Vec3::new(-1.0, 0.0, -1.0),
         radius: -0.4,
-        mat_ptr: material_left.clone(),
+        mat_ptr: material_left,
     }));
     world.add(Arc::new(Sphere {
         center: Vec3::new(1.0, 0.0, -1.0),
         radius: 0.5,
-        mat_ptr: material_right.clone(),
+        mat_ptr: material_right,
     }));
     world
 }
 
 pub fn simple_light() -> HitTableList {
-    let mut world = HitTableList::new();
+    let mut world = HitTableList::default();
 
     let checker = Arc::new(CheckerTexture::new(
         Vec3::new(0.2, 0.3, 0.1),
         Vec3::new(0.9, 0.9, 0.9),
     ));
-    let checker_material = Arc::new(Lambertian::from(checker.clone() as Arc<dyn Texture>));
+    let checker_material = Arc::new(Lambertian::from(checker as Arc<dyn Texture>));
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, -1000.0, 0.0),
         radius: 1000.0,
@@ -206,7 +207,7 @@ pub fn simple_light() -> HitTableList {
     world.add(Arc::new(Sphere {
         center: Vec3::new(0.0, 2.0, 0.0),
         radius: 2.0,
-        mat_ptr: checker_material.clone(),
+        mat_ptr: checker_material,
     }));
 
     let difflight = Arc::new(DiffuseLight::new(Vec3::new(0.7, 0.8, 1.0), 4.0));
@@ -215,7 +216,7 @@ pub fn simple_light() -> HitTableList {
 }
 
 pub fn book2_final_scene() -> HitTableList {
-    let mut boxes1 = HitTableList::new();
+    let mut boxes1 = HitTableList::default();
     let ground = Arc::new(Lambertian::new(Vec3::new(0.48, 0.83, 0.53)));
 
     let boxes_per_side = 20;
@@ -237,7 +238,7 @@ pub fn book2_final_scene() -> HitTableList {
         }
     }
 
-    let mut objects = HitTableList::new();
+    let mut objects = HitTableList::default();
     objects.add(Arc::new(BVHNode::new(&mut boxes1, 0.0, 1.0)));
 
     let light = Arc::new(DiffuseLight::new(Vec3::new(1.0, 1.0, 1.0), 7.0));
@@ -270,7 +271,7 @@ pub fn book2_final_scene() -> HitTableList {
         0.2,
         Arc::new(Isotropic::new_from_color(Vec3::new(0.2, 0.4, 0.9))),
     )));
-    let boundary = Arc::new(Sphere::new(Vec3::new(0.0, 0.0, 0.0), 5000.0, glass.clone()));
+    let boundary = Arc::new(Sphere::new(Vec3::new(0.0, 0.0, 0.0), 5000.0, glass));
     objects.add(Arc::new(ConstantMedium::new(
         boundary,
         0.0001,
@@ -292,7 +293,7 @@ pub fn book2_final_scene() -> HitTableList {
         Arc::new(Lambertian::new_from_texture(pertext)),
     )));
 
-    let mut boxes2 = HitTableList::new();
+    let mut boxes2 = HitTableList::default();
     let white = Arc::new(Lambertian::new(Vec3::new(0.73, 0.73, 0.73)));
     let ns = 1000;
     for _ in 0..ns {
@@ -315,7 +316,7 @@ pub fn book2_final_scene() -> HitTableList {
 }
 
 pub fn cornell_box() -> HitTableList {
-    let mut world = HitTableList::new();
+    let mut world = HitTableList::default();
 
     let red = Arc::new(Lambertian::new(Vec3::new(0.65, 0.05, 0.05)));
     let white = Arc::new(Lambertian::new(Vec3::new(0.73, 0.73, 0.73)));
@@ -355,7 +356,7 @@ pub fn cornell_box() -> HitTableList {
 
     // boxes
 
-    let aluminum = Arc::new(Metal::new(Vec3::new(0.8, 0.85, 0.88), 0.0));
+    // let aluminum = Arc::new(Metal::new(Vec3::new(0.8, 0.85, 0.88), 0.0));
     let checker = Arc::new(CheckerTexture::new(
         Vec3::new(0.2, 0.3, 0.1),
         Vec3::new(0.9, 0.9, 0.9),
@@ -364,7 +365,7 @@ pub fn cornell_box() -> HitTableList {
     let box1 = Arc::new(Box::new(
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(165.0, 330.0, 165.0),
-        white.clone(),
+        white,
     ));
     // let box1 = Arc::new(RotateZ::new(box1, 38.0));
     let box1 = Arc::new(RotateY::new(box1, 38.0));
@@ -391,11 +392,7 @@ pub fn cornell_box() -> HitTableList {
     // // ));
     // world.add(box2);
     let glass = Arc::new(Dielectric::new(1.5));
-    let ball = Arc::new(Sphere::new(
-        Vec3::new(190.0, 90.0, 190.0),
-        90.0,
-        glass.clone(),
-    ));
+    let ball = Arc::new(Sphere::new(Vec3::new(190.0, 90.0, 190.0), 90.0, glass));
     world.add(ball);
 
     world

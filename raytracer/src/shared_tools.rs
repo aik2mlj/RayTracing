@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use crate::vec3::*;
 use std::f64::consts::PI;
 
@@ -67,9 +69,10 @@ impl Perlin {
         for i in (0..n).rev() {
             let i = i as usize;
             let target = rand::random::<usize>() % (i + 1);
-            let tmp = p[i];
-            p[i] = p[target];
-            p[target] = tmp;
+            // let tmp = p[i];
+            // p[i] = p[target];
+            // p[target] = tmp;
+            p.swap(i, target);
         }
     }
 
@@ -108,26 +111,26 @@ impl Perlin {
         }
     }
 
-    pub fn noise(&self, p: &Vec3) -> f64 {
-        let u = p.x - p.x.floor();
-        let v = p.y - p.y.floor();
-        let w = p.z - p.z.floor();
+    pub fn noise(&self, pos: &Vec3) -> f64 {
+        let uu = pos.x - pos.x.floor();
+        let vv = pos.y - pos.y.floor();
+        let ww = pos.z - pos.z.floor();
 
-        let i = p.x.floor() as i32;
-        let j = p.y.floor() as i32;
-        let k = p.z.floor() as i32;
-        let mut c: [[[Vec3; 2]; 2]; 2] = [[[Vec3::zero(); 2]; 2]; 2];
+        let i = pos.x.floor() as i32;
+        let j = pos.y.floor() as i32;
+        let k = pos.z.floor() as i32;
+        let mut cc: [[[Vec3; 2]; 2]; 2] = [[[Vec3::zero(); 2]; 2]; 2];
 
         for di in 0..2 {
             for dj in 0..2 {
                 for dk in 0..2 {
-                    c[di][dj][dk] = self.ranvec[self.perm_x[(i + di as i32) as usize & 255]
+                    cc[di][dj][dk] = self.ranvec[self.perm_x[(i + di as i32) as usize & 255]
                         ^ self.perm_y[(j + dj as i32) as usize & 255]
                         ^ self.perm_z[(k + dk as i32) as usize & 255]];
                 }
             }
         }
-        Self::perlin_interp(c, u, v, w)
+        Self::perlin_interp(cc, uu, vv, ww)
 
         // let i = (4.0 * p.x) as i32 & 255;
         // let j = (4.0 * p.y) as i32 & 255;
@@ -148,5 +151,10 @@ impl Perlin {
         }
 
         accum.abs()
+    }
+}
+impl Default for Perlin {
+    fn default() -> Self {
+        Self::new()
     }
 }
